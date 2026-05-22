@@ -1,0 +1,315 @@
+{
+  "name": "Bitrix SPA Proposal Estimation (AI)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bitrix-spa-estimate",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook (Bitrix Trigger)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1600, 200],
+      "webhookId": "bitrix-spa-estimate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "item_id",
+              "value": "={{ $json.body?.id ?? $json.body?.data?.FIELDS?.ID ?? $json.body?.document_id?.[2]?.split('_').pop() ?? $json.query?.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-extract-id",
+      "name": "Extract Item ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1380, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_WEBHOOK_BASE_URL }}/crm.item.get",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"entityTypeId\": {{ $env.BITRIX_ENTITY_TYPE_ID }},\n  \"id\": {{ $json.item_id }}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-get-item",
+      "name": "Bitrix: Get SPA Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1160, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.result.item.ufCrm497UploadRfp?.urlMachine }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-has-rfp",
+      "name": "Has RFP File?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-940, 320]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.result.item.ufCrm497UploadRfp.urlMachine }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "node-download-rfp",
+      "name": "Download RFP File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-720, 200]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "node-extract-pdf",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [-500, 200],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "r1", "name": "rfp_text", "value": "={{ $('Extract PDF Text').item?.json?.text ?? '' }}", "type": "string" },
+            { "id": "r2", "name": "item", "value": "={{ $('Bitrix: Get SPA Item').item.json.result.item }}", "type": "object" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-merge-with-rfp",
+      "name": "Combine: with RFP text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-280, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "r1", "name": "rfp_text", "value": "", "type": "string" },
+            { "id": "r2", "name": "item", "value": "={{ $('Bitrix: Get SPA Item').item.json.result.item }}", "type": "object" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-merge-no-rfp",
+      "name": "Combine: no RFP",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-720, 440]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map Bitrix enum IDs to readable labels\nconst item = $input.item.json.item;\nconst rfp_text = $input.item.json.rfp_text;\n\n// === ENUM MAPPINGS (sumber: BITRIX_SCHEMA_REFERENCE.md) ===\nconst MAP_PLATFORM = { '9011': 'Web', '9013': 'Mobile', '9015': 'Portal', '9017': 'API' };\nconst MAP_INTEGRATE = { '9019': 'Yes', '9021': 'No' };\nconst MAP_COMPLEXITY = { '9023': 'Low', '9025': 'Medium', '9027': 'High' };\nconst MAP_TIMELINE = { '9029': 'Normal', '9031': 'Dipercepat' };\n\nconst lookup = (map, val) => map[String(val)] ?? `(unknown: ${val})`;\n\n// Platform is multi-select (array)\nconst platformIds = Array.isArray(item.ufCrm497Platform) ? item.ufCrm497Platform : (item.ufCrm497Platform ? [item.ufCrm497Platform] : []);\nconst platformLabels = platformIds.map(id => lookup(MAP_PLATFORM, id)).join(', ') || '(not specified)';\n\nreturn {\n  json: {\n    item_id: item.id,\n    title: item.title || '(no title)',\n    stage_id: item.stageId,\n    summary: item.ufCrm497Summary || '(empty)',\n    feature_list: item.ufCrm497FeatureList || '(empty)',\n    platform_labels: platformLabels,\n    is_integrate: lookup(MAP_INTEGRATE, item.ufCrm497IsIntegrate),\n    integration_detail: item.ufCrm497IntegrationDetail || '(empty)',\n    complexity: lookup(MAP_COMPLEXITY, item.ufCrm497Complexity),\n    user_scale: item.ufCrm497UserScale ?? 0,\n    timeline: lookup(MAP_TIMELINE, item.ufCrm497Timeline),\n    rfp_text: (rfp_text || '').slice(0, 20000) // cap to 20k chars to control AI token use\n  }\n};"
+      },
+      "id": "node-map-enums",
+      "name": "Map Enums → Labels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 320]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "prompt",
+              "value": "=Anda adalah konsultan teknis senior. Hitung estimasi breakdown mandays untuk project software berikut.\n\nPENTING: Output HARUS dalam SATU PARAGRAF tanpa newline (field Bitrix tidak render line break). Gunakan format compact ini PERSIS:\n\n1) <Modul A> (<X> MD) — <sub-komponen dipisah koma>; 2) <Modul B> (<X> MD) — <sub-komponen>; 3) ...; TOTAL: <Y> MD\n\nContoh output yang benar:\n1) Dashboard Project (10 MD) — UI/UX, Backend API, Charts; 2) Authentication (5 MD) — Login, JWT, Reset password; 3) Notifikasi Email (4 MD) — SMTP integrasi, Template, Trigger workflow; TOTAL: 19 MD\n\n== DATA PROJECT ==\nNama Project: {{ $json.title }}\nPlatform: {{ $json.platform_labels }}\nKompleksitas: {{ $json.complexity }}\nSkala User: {{ $json.user_scale }}\nTimeline Expectation: {{ $json.timeline }}\nButuh Integrasi: {{ $json.is_integrate }}\nDetail Integrasi: {{ $json.integration_detail }}\n\nRequirement Summary:\n{{ $json.summary }}\n\nFeature List:\n{{ $json.feature_list }}\n\nIsi dokumen RFP:\n{{ $json.rfp_text || '(tidak ada file RFP diupload)' }}\n\n== ATURAN OUTPUT ==\n- Jawab dalam Bahasa Indonesia\n- Output HARUS satu paragraf, TANPA newline / line break apapun\n- Pisahkan setiap modul dengan tanda \"; \" (semicolon + spasi)\n- Pisahkan nama modul & sub-komponen dengan \" — \" (em-dash + spasi)\n- Format setiap modul: \"N) Nama Modul (X MD) — komponen1, komponen2, ...\"\n- Tutup dengan \"; TOTAL: <Y> MD\"\n- JANGAN pakai markdown (no **, no #, no ```)\n- JANGAN pakai bullet • atau dash sebagai pemisah baris\n- JANGAN ada pengantar atau penutup, langsung breakdown\n- Realistis: estimasi sesuai kompleksitas + timeline + skala user",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-build-prompt",
+      "name": "Build Prompt (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [160, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": {{ JSON.stringify($json.prompt) }} }\n  ],\n  \"temperature\": 0.2,\n  \"max_tokens\": 2000\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "node-call-ai",
+      "name": "Call OpenAI (gpt-4o-mini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [380, 320]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "ai_output",
+              "value": "={{ $json.choices?.[0]?.message?.content ?? 'ERROR: no AI response' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "item_id",
+              "value": "={{ $('Map Enums → Labels').item.json.item_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-extract-ai",
+      "name": "Extract AI Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [600, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_WEBHOOK_BASE_URL }}/crm.item.update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"entityTypeId\": {{ $env.BITRIX_ENTITY_TYPE_ID }},\n  \"id\": {{ $json.item_id }},\n  \"fields\": {\n    \"ufCrm497AiTotalMandays\": {{ JSON.stringify($json.ai_output) }},\n    \"stageId\": \"DT2098_891:CLIENT\"\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-update-bitrix",
+      "name": "Bitrix: Update Item + Move to Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [820, 320]
+    }
+  ],
+  "connections": {
+    "Webhook (Bitrix Trigger)": {
+      "main": [[{ "node": "Extract Item ID", "type": "main", "index": 0 }]]
+    },
+    "Extract Item ID": {
+      "main": [[
+        { "node": "Bitrix: Get SPA Item", "type": "main", "index": 0 }
+      ]]
+    },
+    "Bitrix: Get SPA Item": {
+      "main": [[{ "node": "Has RFP File?", "type": "main", "index": 0 }]]
+    },
+    "Has RFP File?": {
+      "main": [
+        [{ "node": "Download RFP File", "type": "main", "index": 0 }],
+        [{ "node": "Combine: no RFP", "type": "main", "index": 0 }]
+      ]
+    },
+    "Download RFP File": {
+      "main": [[{ "node": "Extract PDF Text", "type": "main", "index": 0 }]]
+    },
+    "Extract PDF Text": {
+      "main": [[{ "node": "Combine: with RFP text", "type": "main", "index": 0 }]]
+    },
+    "Combine: with RFP text": {
+      "main": [[{ "node": "Map Enums → Labels", "type": "main", "index": 0 }]]
+    },
+    "Combine: no RFP": {
+      "main": [[{ "node": "Map Enums → Labels", "type": "main", "index": 0 }]]
+    },
+    "Map Enums → Labels": {
+      "main": [[{ "node": "Build Prompt (EDIT ME)", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt (EDIT ME)": {
+      "main": [[{ "node": "Call OpenAI (gpt-4o-mini)", "type": "main", "index": 0 }]]
+    },
+    "Call OpenAI (gpt-4o-mini)": {
+      "main": [[{ "node": "Extract AI Response", "type": "main", "index": 0 }]]
+    },
+    "Extract AI Response": {
+      "main": [[{ "node": "Bitrix: Update Item + Move to Pending", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "",
+    "timezone": "Asia/Jakarta"
+  },
+  "active": false,
+  "pinData": {},
+  "versionId": "v0-2026-05-22",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
