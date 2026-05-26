@@ -100,10 +100,13 @@ Buka workflow di n8n UI → klik node **"Build Prompt (EDIT ME)"** → edit text
 2. Di n8n: edit node **"Map Enums → Labels"** (kalau enum) + node **"Build Prompt (EDIT ME)"** untuk include field baru
 
 ### Ganti AI Model
-Klik node **"Call OpenAI (gpt-4o-mini)"** → edit field `jsonBody` → ganti string model:
-- `gpt-4o-mini` (default, murah & cepat)
-- `gpt-4o` (lebih kuat)
+Klik node **"Call OpenAI (gpt-5.4-nano)"** → edit field `jsonBody` → ganti string model:
+- `gpt-5.4-nano` (default sekarang — fast & cheap, support `max_completion_tokens`)
+- `gpt-5.4` / `gpt-5.4-mini` (lebih kuat reasoning)
+- `gpt-4o`, `gpt-4o-mini` (legacy generation, gunakan param `max_tokens`)
 - atau pakai OpenRouter dengan ganti URL ke `https://openrouter.ai/api/v1/chat/completions` + ganti auth header
+
+⚠️ **Note:** family `gpt-5.x` butuh param `max_completion_tokens`, sementara `gpt-4.x` pakai `max_tokens`. Sesuaikan saat ganti model.
 
 ## License
 
