@@ -11,6 +11,9 @@ secrets/
 deploy/.env
 deploy/.env.backup
 
+# === Internal memory file (contains real secrets, local-only, NEVER push) ===
+memory.md
+
 # === Customer-owned reference docs ===
 docs/apidocs_spa_proposal_estimation_update.pdf
 docs/pages/
