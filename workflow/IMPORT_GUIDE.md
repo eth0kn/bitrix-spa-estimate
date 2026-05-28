@@ -27,7 +27,7 @@ Login dengan email yang dipakai saat setup owner.
    ```
    C:\Users\KN\Documents\Projects\bitrix\workflow\proposal-estimation.json
    ```
-6. Workflow akan muncul dengan **13 node** terhubung jadi flow
+6. Workflow akan muncul dengan **15 node** terhubung jadi flow (termasuk 2 node baru untuk AI extraction RFP)
 
 ### 3. Cek Setiap Node Tidak Ada Error
 
@@ -101,13 +101,27 @@ Setelah test sukses:
 
 ## Cara Edit Prompt AI
 
-Yang paling sering Mas/Michael perlu edit:
+Ada **2 prompt** yang bisa di-tune:
 
-1. Buka workflow
-2. Klik node bernama **"Build Prompt (EDIT ME)"**
-3. Di panel kanan, edit text di field **"prompt"**
-4. **Save workflow** (Ctrl+S)
-5. Perubahan langsung berlaku untuk eksekusi berikutnya
+### A. Main Estimation Prompt (paling sering diedit)
+1. Buka workflow → klik node **"Build Prompt (EDIT ME)"**
+2. Edit text di field **"prompt"** → save
+3. Berlaku untuk eksekusi berikutnya
+
+### B. RFP Extraction Prompt
+Bertugas filter PDF RFP: extract hanya functional req, integrations, workflows, reporting, mobile/web. Buang legal, SLA, company profile, commercial terms.
+
+1. Buka workflow → klik node **"Build RFP Extraction Prompt"**
+2. Edit text di field **"extraction_prompt"** → save
+3. Misal mau extract kategori baru (mis: "Compliance Requirements"), tambah di list EKSTRAK
+
+## Cara Tambah Field Input Baru
+
+Buka node **"Map Enums → Labels"** — di awal code ada **block komentar verbose step-by-step** untuk:
+1. Buat custom field di Bitrix
+2. Tambah ENUM mapping (kalau perlu)
+3. Tambah field di return object
+4. Reference di "Build Prompt (EDIT ME)" sebagai `{{ $json.<field_name> }}`
 
 Placeholder yang tersedia di prompt:
 - `{{ $json.title }}` — Nama project

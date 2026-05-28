@@ -121,8 +121,7 @@
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "r1", "name": "rfp_text", "value": "={{ $('Extract PDF Text').item?.json?.text ?? '' }}", "type": "string" },
-            { "id": "r2", "name": "item", "value": "={{ $('Bitrix: Get SPA Item').item.json.result.item }}", "type": "object" }
+            { "id": "r1", "name": "rfp_text", "value": "={{ $('Extract PDF Text').item?.json?.text ?? '' }}", "type": "string" }
           ]
         },
         "options": {}
@@ -137,8 +136,7 @@
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "r1", "name": "rfp_text", "value": "", "type": "string" },
-            { "id": "r2", "name": "item", "value": "={{ $('Bitrix: Get SPA Item').item.json.result.item }}", "type": "object" }
+            { "id": "r1", "name": "rfp_text", "value": "", "type": "string" }
           ]
         },
         "options": {}
@@ -151,33 +149,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Map Bitrix enum IDs to readable labels\nconst item = $input.item.json.item;\nconst rfp_text = $input.item.json.rfp_text;\n\n// === ENUM MAPPINGS (sumber: BITRIX_SCHEMA_REFERENCE.md) ===\nconst MAP_PLATFORM = { '9011': 'Web', '9013': 'Mobile', '9015': 'Portal', '9017': 'API' };\nconst MAP_INTEGRATE = { '9019': 'Yes', '9021': 'No' };\nconst MAP_COMPLEXITY = { '9023': 'Low', '9025': 'Medium', '9027': 'High' };\nconst MAP_TIMELINE = { '9029': 'Normal', '9031': 'Dipercepat' };\n\nconst lookup = (map, val) => map[String(val)] ?? `(unknown: ${val})`;\n\n// Platform is multi-select (array)\nconst platformIds = Array.isArray(item.ufCrm497Platform) ? item.ufCrm497Platform : (item.ufCrm497Platform ? [item.ufCrm497Platform] : []);\nconst platformLabels = platformIds.map(id => lookup(MAP_PLATFORM, id)).join(', ') || '(not specified)';\n\nreturn {\n  json: {\n    item_id: item.id,\n    title: item.title || '(no title)',\n    stage_id: item.stageId,\n    summary: item.ufCrm497Summary || '(empty)',\n    feature_list: item.ufCrm497FeatureList || '(empty)',\n    platform_labels: platformLabels,\n    is_integrate: lookup(MAP_INTEGRATE, item.ufCrm497IsIntegrate),\n    integration_detail: item.ufCrm497IntegrationDetail || '(empty)',\n    complexity: lookup(MAP_COMPLEXITY, item.ufCrm497Complexity),\n    user_scale: item.ufCrm497UserScale ?? 0,\n    timeline: lookup(MAP_TIMELINE, item.ufCrm497Timeline),\n    rfp_text: (rfp_text || '').slice(0, 20000) // cap to 20k chars to control AI token use\n  }\n};"
-      },
-      "id": "node-map-enums",
-      "name": "Map Enums → Labels",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-60, 320]
-    },
-    {
-      "parameters": {
         "assignments": {
           "assignments": [
             {
-              "id": "p1",
-              "name": "prompt",
-              "value": "=Anda adalah konsultan teknis senior. Hitung estimasi breakdown mandays untuk project software berikut.\n\nPENTING: Output HARUS dalam SATU PARAGRAF tanpa newline (field Bitrix tidak render line break). Gunakan format compact ini PERSIS:\n\n1) <Modul A> (<X> MD) — <sub-komponen dipisah koma>; 2) <Modul B> (<X> MD) — <sub-komponen>; 3) ...; TOTAL: <Y> MD\n\nContoh output yang benar:\n1) Dashboard Project (10 MD) — UI/UX, Backend API, Charts; 2) Authentication (5 MD) — Login, JWT, Reset password; 3) Notifikasi Email (4 MD) — SMTP integrasi, Template, Trigger workflow; TOTAL: 19 MD\n\n== DATA PROJECT ==\nNama Project: {{ $json.title }}\nPlatform: {{ $json.platform_labels }}\nKompleksitas: {{ $json.complexity }}\nSkala User: {{ $json.user_scale }}\nTimeline Expectation: {{ $json.timeline }}\nButuh Integrasi: {{ $json.is_integrate }}\nDetail Integrasi: {{ $json.integration_detail }}\n\nRequirement Summary:\n{{ $json.summary }}\n\nFeature List:\n{{ $json.feature_list }}\n\nIsi dokumen RFP:\n{{ $json.rfp_text || '(tidak ada file RFP diupload)' }}\n\n== ATURAN OUTPUT ==\n- Jawab dalam Bahasa Indonesia\n- Output HARUS satu paragraf, TANPA newline / line break apapun\n- Pisahkan setiap modul dengan tanda \"; \" (semicolon + spasi)\n- Pisahkan nama modul & sub-komponen dengan \" — \" (em-dash + spasi)\n- Format setiap modul: \"N) Nama Modul (X MD) — komponen1, komponen2, ...\"\n- Tutup dengan \"; TOTAL: <Y> MD\"\n- JANGAN pakai markdown (no **, no #, no ```)\n- JANGAN pakai bullet • atau dash sebagai pemisah baris\n- JANGAN ada pengantar atau penutup, langsung breakdown\n- Realistis: estimasi sesuai kompleksitas + timeline + skala user",
+              "id": "ep1",
+              "name": "extraction_prompt",
+              "value": "=Dari dokumen RFP berikut, ekstrak HANYA bagian yang relevan untuk estimasi mandays project software.\n\nEKSTRAK (masukkan ke output):\n- Functional Requirements (fitur yang dibutuhkan user)\n- Integrations (integrasi dengan sistem lain: ERP, SSO, payment gateway, dll)\n- Workflows (alur proses bisnis: approval flow, escalation, automation)\n- Reporting Needs (kebutuhan laporan, dashboard, analytics, KPI)\n- Mobile/Web Requirements (platform target: Web/Mobile/Portal/API)\n\nABAIKAN (jangan masukkan ke output):\n- Legal clauses (klausa hukum, NDA, IP rights, governing law)\n- SLA / penalty / service level agreements\n- Company profile / perkenalan vendor / introduction\n- Commercial terms / pricing / payment terms / billing\n\nFORMAT OUTPUT: bullet list ringkas terstruktur per kategori. Contoh:\nFunctional Requirements:\n- ...\n- ...\nIntegrations:\n- ...\nWorkflows:\n- ...\nReporting Needs:\n- ...\nMobile/Web Requirements:\n- ...\n\nKalau kategori tertentu tidak disebut di dokumen, SKIP kategori itu (jangan tulis 'tidak ada' atau 'kosong').\nKalau dokumen kosong, bukan RFP, atau tidak relevan: return STRING KOSONG saja.\nGunakan Bahasa Indonesia untuk output.\n\n=== DOKUMEN RFP (RAW TEXT) ===\n{{ $json.rfp_text || '(kosong)' }}",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "node-build-prompt",
-      "name": "Build Prompt (EDIT ME)",
+      "id": "node-build-extract-prompt",
+      "name": "Build RFP Extraction Prompt",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [160, 320]
+      "position": [-60, 320]
     },
     {
       "parameters": {
@@ -192,16 +180,71 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gpt-5.4-nano\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": {{ JSON.stringify($json.prompt) }} }\n  ],\n  \"temperature\": 0.2,\n  \"max_completion_tokens\": 2000\n}",
+        "jsonBody": "={\n  \"model\": \"gpt-5.5\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": {{ JSON.stringify($json.extraction_prompt) }} }\n  ],\n  \"max_completion_tokens\": 8000\n}",
         "options": {
-          "timeout": 120000
+          "timeout": 180000
+        }
+      },
+      "id": "node-call-ai-extract-rfp",
+      "name": "Call OpenAI - Extract RFP Sections (gpt-5.5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [160, 320],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Node: Map Enums → Labels\n// Tujuan: Convert raw enum IDs dari Bitrix ke label readable + ambil RFP\n//         yang sudah di-filter via AI di node sebelumnya.\n// Output: Object yang siap dipakai di \"Build Prompt (EDIT ME)\" sebagai {{ $json.* }}\n// =============================================================================\n//\n// CARA TAMBAH FIELD BARU (step-by-step untuk Michael / Admin):\n//\n//   1. Di Bitrix24: buat custom field baru di SPA \"Proposal Estimation\" (entityTypeId=2098)\n//      via menu Settings → Custom Fields.\n//\n//   2. Verify field code & enum IDs (kalau field-nya tipe enumeration) lewat call:\n//        POST /rest/<user>/<token>/crm.item.fields\n//        Body: {\"entityTypeId\": 2098}\n//      Atau lihat docs/BITRIX_SCHEMA_REFERENCE.md di repo.\n//\n//   3. KALAU FIELD TIPE ENUMERATION:\n//      a. Tambah const MAP_<NAMA> di bawah (section STEP 2):\n//         const MAP_INDUSTRY = { '9201': 'Finance', '9203': 'Retail', '9205': 'Healthcare' };\n//      b. Tambah di return object (section STEP 5):\n//         industry: lookup(MAP_INDUSTRY, item.ufCrm497Industry),\n//\n//   4. KALAU FIELD TIPE STRING / NUMBER:\n//      Langsung tambah di return object:\n//        industry: item.ufCrm497Industry || '(empty)',\n//\n//   5. Buka node \"Build Prompt (EDIT ME)\" → tambah baris baru:\n//      Industry: {{ $json.industry }}\n//\n//   6. Save workflow (Ctrl+S), test dengan kirim webhook.\n//\n// =============================================================================\n\n// === STEP 1: AMBIL DATA SUMBER ===\n//\n// 'item'     = data lengkap SPA item dari Bitrix (hasil crm.item.get di node\n//              \"Bitrix: Get SPA Item\"). Referensi langsung supaya tidak bergantung\n//              pada Combine nodes.\n//\n// 'rfp_text' = hasil ekstraksi AI dari PDF RFP (di node \"Call OpenAI - Extract\n//              RFP Sections\"). Sudah di-FILTER hanya berisi: functional req,\n//              integrations, workflows, reporting needs, mobile/web requirements.\n//              Legal, SLA, company profile, commercial terms sudah dibuang.\n\nconst item = $('Bitrix: Get SPA Item').item.json.result.item;\nconst rfp_text = $input.item.json.choices?.[0]?.message?.content ?? '';\n\n// === STEP 2: ENUM MAPPINGS ===\n//\n// Mapping dari enum ID (string angka) ke label readable.\n// Sumber otoritatif: docs/BITRIX_SCHEMA_REFERENCE.md di repo.\n//\n// FORMAT: const MAP_<NAMA_FIELD> = { 'enum_id_1': 'Label 1', 'enum_id_2': 'Label 2', ... }\n\nconst MAP_PLATFORM = {\n  '9011': 'Web',\n  '9013': 'Mobile',\n  '9015': 'Portal',\n  '9017': 'API'\n};\n\nconst MAP_INTEGRATE = {\n  '9019': 'Yes',\n  '9021': 'No'\n};\n\nconst MAP_COMPLEXITY = {\n  '9023': 'Low',\n  '9025': 'Medium',\n  '9027': 'High'\n};\n\nconst MAP_TIMELINE = {\n  '9029': 'Normal',\n  '9031': 'Dipercepat'\n};\n\n// === STEP 3: HELPER FUNCTION ===\n//\n// Safely lookup label by enum ID. Return '(unknown: <id>)' kalau ID tidak dikenal.\nconst lookup = (map, val) => map[String(val)] ?? `(unknown: ${val})`;\n\n// === STEP 4: HANDLE FIELD MULTI-SELECT ===\n//\n// Platform di Bitrix multi-select → return-nya array of IDs (mis: [\"9011\",\"9015\"]).\n// Kalau cuma 1 dipilih → kadang return single value (bukan array).\n// Code di bawah handle kedua kasus secara safe.\nconst platformIds = Array.isArray(item.ufCrm497Platform)\n  ? item.ufCrm497Platform\n  : (item.ufCrm497Platform ? [item.ufCrm497Platform] : []);\n\nconst platformLabels = platformIds\n  .map(id => lookup(MAP_PLATFORM, id))\n  .join(', ') || '(not specified)';\n\n// === STEP 5: RETURN OUTPUT ===\n//\n// Object yang di-return di sini jadi $json di node berikutnya (\"Build Prompt\").\n// Setiap key bisa di-reference di prompt template sebagai {{ $json.<key> }}.\nreturn {\n  json: {\n    // --- ID & metadata ---\n    item_id: item.id,\n    title: item.title || '(no title)',\n    stage_id: item.stageId,\n\n    // --- Free-text fields (langsung passthrough) ---\n    summary: item.ufCrm497Summary || '(empty)',\n    feature_list: item.ufCrm497FeatureList || '(empty)',\n    integration_detail: item.ufCrm497IntegrationDetail || '(empty)',\n\n    // --- Enum fields (converted ke label readable) ---\n    platform_labels: platformLabels,\n    is_integrate: lookup(MAP_INTEGRATE, item.ufCrm497IsIntegrate),\n    complexity: lookup(MAP_COMPLEXITY, item.ufCrm497Complexity),\n    timeline: lookup(MAP_TIMELINE, item.ufCrm497Timeline),\n\n    // --- Number fields ---\n    user_scale: item.ufCrm497UserScale ?? 0,\n\n    // --- RFP (sudah di-filter AI: hanya functional req, integrations, workflows,\n    //     reporting needs, mobile/web requirements) ---\n    rfp_text: rfp_text || '(tidak ada file RFP atau extraction kosong)'\n  }\n};"
+      },
+      "id": "node-map-enums",
+      "name": "Map Enums → Labels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 320]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "prompt",
+              "value": "=Anda adalah konsultan teknis senior. Hitung estimasi breakdown mandays untuk project software berikut.\n\nPENTING: Output HARUS dalam SATU PARAGRAF tanpa newline (field Bitrix tidak render line break). Gunakan format compact ini PERSIS:\n\n1) <Modul A> (<X> MD) — <sub-komponen dipisah koma>; 2) <Modul B> (<X> MD) — <sub-komponen>; 3) ...; TOTAL: <Y> MD\n\nContoh output yang benar:\n1) Dashboard Project (10 MD) — UI/UX, Backend API, Charts; 2) Authentication (5 MD) — Login, JWT, Reset password; 3) Notifikasi Email (4 MD) — SMTP integrasi, Template, Trigger workflow; TOTAL: 19 MD\n\n== DATA PROJECT ==\nNama Project: {{ $json.title }}\nPlatform: {{ $json.platform_labels }}\nKompleksitas: {{ $json.complexity }}\nSkala User: {{ $json.user_scale }}\nTimeline Expectation: {{ $json.timeline }}\nButuh Integrasi: {{ $json.is_integrate }}\nDetail Integrasi: {{ $json.integration_detail }}\n\nRequirement Summary:\n{{ $json.summary }}\n\nFeature List:\n{{ $json.feature_list }}\n\nIsi dokumen RFP (sudah di-filter AI, hanya kategori relevan):\n{{ $json.rfp_text }}\n\n== ATURAN OUTPUT ==\n- Jawab dalam Bahasa Indonesia\n- Output HARUS satu paragraf, TANPA newline / line break apapun\n- Pisahkan setiap modul dengan tanda \"; \" (semicolon + spasi)\n- Pisahkan nama modul & sub-komponen dengan \" — \" (em-dash + spasi)\n- Format setiap modul: \"N) Nama Modul (X MD) — komponen1, komponen2, ...\"\n- Tutup dengan \"; TOTAL: <Y> MD\"\n- JANGAN pakai markdown (no **, no #, no ```)\n- JANGAN pakai bullet • atau dash sebagai pemisah baris\n- JANGAN ada pengantar atau penutup, langsung breakdown\n- Realistis: estimasi sesuai kompleksitas + timeline + skala user + scope dari RFP",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-build-prompt",
+      "name": "Build Prompt (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [600, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.5\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": {{ JSON.stringify($json.prompt) }} }\n  ],\n  \"max_completion_tokens\": 6000\n}",
+        "options": {
+          "timeout": 180000
         }
       },
       "id": "node-call-ai",
-      "name": "Call OpenAI (gpt-5.4-nano)",
+      "name": "Call OpenAI (gpt-5.5)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [380, 320]
+      "position": [820, 320]
     },
     {
       "parameters": {
@@ -227,7 +270,7 @@
       "name": "Extract AI Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [600, 320]
+      "position": [1040, 320]
     },
     {
       "parameters": {
@@ -250,7 +293,7 @@
       "name": "Bitrix: Update Item + Move to Pending",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [820, 320]
+      "position": [1260, 320]
     }
   ],
   "connections": {
@@ -278,18 +321,24 @@
       "main": [[{ "node": "Combine: with RFP text", "type": "main", "index": 0 }]]
     },
     "Combine: with RFP text": {
-      "main": [[{ "node": "Map Enums → Labels", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Build RFP Extraction Prompt", "type": "main", "index": 0 }]]
     },
     "Combine: no RFP": {
+      "main": [[{ "node": "Build RFP Extraction Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build RFP Extraction Prompt": {
+      "main": [[{ "node": "Call OpenAI - Extract RFP Sections (gpt-5.5)", "type": "main", "index": 0 }]]
+    },
+    "Call OpenAI - Extract RFP Sections (gpt-5.5)": {
       "main": [[{ "node": "Map Enums → Labels", "type": "main", "index": 0 }]]
     },
     "Map Enums → Labels": {
       "main": [[{ "node": "Build Prompt (EDIT ME)", "type": "main", "index": 0 }]]
     },
     "Build Prompt (EDIT ME)": {
-      "main": [[{ "node": "Call OpenAI (gpt-5.4-nano)", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Call OpenAI (gpt-5.5)", "type": "main", "index": 0 }]]
     },
-    "Call OpenAI (gpt-5.4-nano)": {
+    "Call OpenAI (gpt-5.5)": {
       "main": [[{ "node": "Extract AI Response", "type": "main", "index": 0 }]]
     },
     "Extract AI Response": {
@@ -307,7 +356,7 @@
   },
   "active": false,
   "pinData": {},
-  "versionId": "v0-2026-05-22",
+  "versionId": "v2-2026-05-26",
   "meta": {
     "templateCredsSetupCompleted": false
   },
