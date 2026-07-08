@@ -14,6 +14,9 @@ deploy/.env.backup
 # === Internal memory file (contains real secrets, local-only, NEVER push) ===
 memory.md
 
+# === Credentials quick-reference (local-only, NEVER push) ===
+credentials.md
+
 # === Customer-owned reference docs ===
 docs/apidocs_spa_proposal_estimation_update.pdf
 docs/pages/
