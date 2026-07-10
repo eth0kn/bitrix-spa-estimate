@@ -32,10 +32,11 @@ services:
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
       N8N_HOST: ${N8N_PUBLIC_HOST}
       N8N_PORT: 5678
-      N8N_PROTOCOL: http
-      N8N_SECURE_COOKIE: "false"
-      N8N_EDITOR_BASE_URL: http://${N8N_PUBLIC_HOST}:5678
-      WEBHOOK_URL: http://${N8N_PUBLIC_HOST}:5678/
+      N8N_PROTOCOL: https
+      N8N_SECURE_COOKIE: "true"
+      N8N_PROXY_HOPS: 1
+      N8N_EDITOR_BASE_URL: https://${N8N_PUBLIC_HOST}
+      WEBHOOK_URL: https://${N8N_PUBLIC_HOST}/
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       GENERIC_TIMEZONE: Asia/Jakarta
       TZ: Asia/Jakarta
@@ -51,6 +52,7 @@ services:
       BITRIX_WEBHOOK_BASE_URL: ${BITRIX_WEBHOOK_BASE_URL}
       BITRIX_ENTITY_TYPE_ID: ${BITRIX_ENTITY_TYPE_ID}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      TLDV_API_KEY: ${TLDV_API_KEY}
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -58,6 +60,22 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: n8n-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - n8n-internal
+    depends_on:
+      - n8n
 
 networks:
   n8n-internal:
@@ -69,3 +87,7 @@ volumes:
     name: n8n-stack-postgres-data
   n8n_data:
     name: n8n-stack-n8n-data
+  caddy_data:
+    name: n8n-stack-caddy-data
+  caddy_config:
+    name: n8n-stack-caddy-config

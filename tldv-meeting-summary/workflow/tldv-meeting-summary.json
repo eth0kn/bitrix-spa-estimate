@@ -1,0 +1,334 @@
+{
+  "name": "TLDV Meeting Summary → Bitrix Lead Comment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tldv-transcript-ready",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook (TLDV Trigger)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1600, 300],
+      "webhookId": "tldv-transcript-ready"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "e1",
+              "leftValue": "={{ $json.body?.event }}",
+              "rightValue": "TranscriptReady",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-filter-event",
+      "name": "Filter: TranscriptReady?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1380, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "m1",
+              "name": "meeting_id",
+              "value": "={{ $json.body?.data?.meetingId ?? $json.body?.data?.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-extract-meeting-id",
+      "name": "Extract Meeting ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1160, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://pasta.tldv.io/v1alpha1/meetings/{{ $json.meeting_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.TLDV_API_KEY }}" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-get-meeting-metadata",
+      "name": "TLDV: Get Meeting Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-940, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Node: Parse Lead ID from Title\n// Tujuan: Extract Bitrix Lead ID dari nama meeting TLDV.\n//         Convention format meeting title: \"<any prefix>_ <lead_id>\"\n//         Contoh: \"meeting askarasoft with pt abc_ 4759\"\n// =============================================================================\n//\n// CARA UBAH REGEX (kalau format konvensi berubah):\n//   Regex sekarang: /_\\s*(\\d+)\\s*$/\n//   Artinya: underscore + optional whitespace + digit(s) + optional whitespace + end-of-string\n//\n//   Untuk format lain:\n//   - \"#4759\" di akhir: /#(\\d+)\\s*$/\n//   - \"[4759]\" di akhir: /\\[(\\d+)\\]\\s*$/\n//   - \"lead:4759\" di akhir: /lead:\\s*(\\d+)\\s*$/i\n//\n// TRANSCRIPT sudah tersedia di webhook payload — kita ambil langsung dari sana.\n// =============================================================================\n\nconst meeting = $input.item.json;\nconst webhookPayload = $('Webhook (TLDV Trigger)').item.json.body;\n\n// === Extract lead_id dari meeting name ===\nconst meetingName = meeting.name || '';\nconst match = meetingName.match(/_\\s*(\\d+)\\s*$/);\nconst leadId = match ? parseInt(match[1], 10) : null;\nconst isValid = leadId !== null && !isNaN(leadId) && leadId > 0;\n\n// === Extract transcript dari webhook payload (bukan dari metadata) ===\n// Struktur: body.data.data.transcript (inline dari TranscriptReady)\nconst transcript = webhookPayload?.data?.data?.transcript || '';\nconst segments = webhookPayload?.data?.data?.segments || [];\n\n// === Format attendees ===\nconst invitees = (meeting.invitees || [])\n  .map(i => i.name ? `${i.name} (${i.email})` : i.email)\n  .filter(Boolean)\n  .join(', ') || '(tidak ada data)';\n\nconst organizer = meeting.organizer\n  ? `${meeting.organizer.name || meeting.organizer.email}`\n  : '(tidak diketahui)';\n\n// === Format duration ke menit ===\nconst durationMinutes = meeting.duration\n  ? Math.round(meeting.duration / 60)\n  : 0;\n\nreturn {\n  json: {\n    meeting_id: meeting.id,\n    meeting_name: meetingName,\n    lead_id: leadId,\n    is_valid: isValid,\n    error_reason: isValid ? null : `Meeting title \"${meetingName}\" tidak match pola \"..._<digits>\"`,\n    happened_at: meeting.happenedAt,\n    duration_minutes: durationMinutes,\n    organizer: organizer,\n    attendees: invitees,\n    tldv_url: meeting.url,\n    transcript: transcript,\n    transcript_length: transcript.length,\n    segment_count: segments.length\n  }\n};"
+      },
+      "id": "node-parse-lead-id",
+      "name": "Parse Lead ID from Title",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-720, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "v1",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-valid",
+      "name": "IF Lead ID Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-500, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_WEBHOOK_BASE_URL }}/crm.lead.get",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ID\": {{ $json.lead_id }}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-get-lead",
+      "name": "Bitrix: Get Lead (validate)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-280, 100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "l1",
+              "leftValue": "={{ $json.result?.ID }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-lead-exists",
+      "name": "IF Lead Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-60, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "prompt",
+              "value": "=Anda adalah AI assistant untuk sales team. Berikut transcript meeting yang direkam TLDV. Buat ringkasan terstruktur dalam format BBCode Bitrix24 (BUKAN HTML, BUKAN markdown).\n\nGunakan format PERSIS ini. Skip section yang tidak relevan / tidak ada info-nya di transcript (jangan tulis 'tidak ada'):\n\n[b]Meeting Summary[/b]\n\n[b]Attendees:[/b]\n- Nama (email)\n\n[b]Duration:[/b] X menit\n\n[b]Discussion Highlights:[/b]\n- Point 1\n- Point 2\n\n[b]Client Pain Points / Needs:[/b]\n- Concern / pain point client\n\n[b]Decisions Made:[/b]\n- Keputusan yang di-agree\n\n[b]Action Items:[/b]\n- Owner: Task (Due: date kalau disebutkan)\n\n[b]Next Steps:[/b]\n- Langkah berikutnya\n\n[b]Sales Signals:[/b]\n- Budget: (kalau ada indikasi budget)\n- Timeline: (kalau ada indikasi kapan launch / deadline)\n- Decision-maker: (siapa yang punya kata final di sisi client)\n- Objections: (concern spesifik / hambatan)\n\n== METADATA MEETING ==\nNama Meeting: {{ $('Parse Lead ID from Title').item.json.meeting_name }}\nTanggal: {{ $('Parse Lead ID from Title').item.json.happened_at }}\nDurasi: {{ $('Parse Lead ID from Title').item.json.duration_minutes }} menit\nOrganizer: {{ $('Parse Lead ID from Title').item.json.organizer }}\nAttendees: {{ $('Parse Lead ID from Title').item.json.attendees }}\nLead di Bitrix: #{{ $('Parse Lead ID from Title').item.json.lead_id }} — {{ $json.result?.TITLE }}\n\n== TRANSCRIPT ==\n{{ $('Parse Lead ID from Title').item.json.transcript }}\n\n== ATURAN OUTPUT ==\n- Jawab dalam Bahasa Indonesia\n- Gunakan BBCode SAJA: [b]bold[/b], [i]italic[/i], [url]url[/url]\n- JANGAN pakai HTML tag (<br>, <b>, dll)\n- JANGAN pakai markdown (**, #, `, dll)\n- Newline pakai karakter newline biasa (\\n di JSON), Bitrix akan render sebagai break\n- Section boleh di-skip kalau tidak ada info dari transcript\n- Ringkas & to-the-point, jangan verbose\n- Bahasa formal profesional\n- Kalau ada speaker tidak dikenal, tulis \"Peserta\"\n- Fokus pada info yang actionable untuk sales follow-up",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-build-prompt",
+      "name": "Build Summarize Prompt (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [160, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.5\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": {{ JSON.stringify($json.prompt) }} }\n  ],\n  \"max_completion_tokens\": 6000\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "node-call-ai",
+      "name": "Call OpenAI (gpt-5.5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [380, 100]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "ai_summary",
+              "value": "={{ $json.choices?.[0]?.message?.content ?? 'ERROR: no AI response' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "lead_id",
+              "value": "={{ $('Parse Lead ID from Title').item.json.lead_id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-extract-summary",
+      "name": "Extract AI Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [600, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_WEBHOOK_BASE_URL }}/crm.timeline.comment.add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fields\": {\n    \"ENTITY_ID\": {{ $json.lead_id }},\n    \"ENTITY_TYPE\": \"lead\",\n    \"COMMENT\": {{ JSON.stringify($json.ai_summary) }}\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-post-comment",
+      "name": "Bitrix: Post Timeline Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [820, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Node: Log Skip Reason (Error Branch)\n// Tujuan: Log alasan workflow skip (bukan error crash), supaya di execution log\n//         terlihat kenapa comment tidak ter-post.\n//\n// Skip scenarios:\n//   - Meeting title tidak match regex → lead_id null\n//   - Lead ID tidak ada di Bitrix (deleted / typo)\n//\n// Kalau mau notif ke channel eksternal (Telegram/email), tambah HTTP node\n// setelah node ini (misal ke Telegram Bot API).\n// =============================================================================\n\nconst parseData = $('Parse Lead ID from Title').item?.json || {};\nconst leadGetResponse = $input.item?.json || {};\n\nconst reason = !parseData.is_valid\n  ? `Meeting title parse failed: \"${parseData.meeting_name}\" tidak match pola \"..._<digits>\"`\n  : !leadGetResponse.result?.ID\n    ? `Lead #${parseData.lead_id} tidak ditemukan di Bitrix`\n    : 'Unknown skip reason';\n\nconsole.log('[TLDV Meeting Summary SKIP]', {\n  meeting_id: parseData.meeting_id,\n  meeting_name: parseData.meeting_name,\n  attempted_lead_id: parseData.lead_id,\n  reason: reason\n});\n\nreturn {\n  json: {\n    skipped: true,\n    reason: reason,\n    meeting_id: parseData.meeting_id,\n    meeting_name: parseData.meeting_name\n  }\n};"
+      },
+      "id": "node-log-skip",
+      "name": "Log Skip Reason",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 400]
+    }
+  ],
+  "connections": {
+    "Webhook (TLDV Trigger)": {
+      "main": [[{ "node": "Filter: TranscriptReady?", "type": "main", "index": 0 }]]
+    },
+    "Filter: TranscriptReady?": {
+      "main": [
+        [{ "node": "Extract Meeting ID", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Extract Meeting ID": {
+      "main": [[{ "node": "TLDV: Get Meeting Metadata", "type": "main", "index": 0 }]]
+    },
+    "TLDV: Get Meeting Metadata": {
+      "main": [[{ "node": "Parse Lead ID from Title", "type": "main", "index": 0 }]]
+    },
+    "Parse Lead ID from Title": {
+      "main": [[{ "node": "IF Lead ID Valid?", "type": "main", "index": 0 }]]
+    },
+    "IF Lead ID Valid?": {
+      "main": [
+        [{ "node": "Bitrix: Get Lead (validate)", "type": "main", "index": 0 }],
+        [{ "node": "Log Skip Reason", "type": "main", "index": 0 }]
+      ]
+    },
+    "Bitrix: Get Lead (validate)": {
+      "main": [[{ "node": "IF Lead Exists?", "type": "main", "index": 0 }]]
+    },
+    "IF Lead Exists?": {
+      "main": [
+        [{ "node": "Build Summarize Prompt (EDIT ME)", "type": "main", "index": 0 }],
+        [{ "node": "Log Skip Reason", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Summarize Prompt (EDIT ME)": {
+      "main": [[{ "node": "Call OpenAI (gpt-5.5)", "type": "main", "index": 0 }]]
+    },
+    "Call OpenAI (gpt-5.5)": {
+      "main": [[{ "node": "Extract AI Summary", "type": "main", "index": 0 }]]
+    },
+    "Extract AI Summary": {
+      "main": [[{ "node": "Bitrix: Post Timeline Comment", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "",
+    "timezone": "Asia/Jakarta"
+  },
+  "active": false,
+  "pinData": {},
+  "versionId": "v1-2026-07-08",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
