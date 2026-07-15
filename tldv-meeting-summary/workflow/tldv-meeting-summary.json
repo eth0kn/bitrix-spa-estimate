@@ -120,7 +120,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BITRIX_WEBHOOK_BASE_URL }}/crm.lead.get",
+        "url": "={{ $env.BITRIX_PROD_URL }}/crm.lead.get",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -240,7 +240,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BITRIX_WEBHOOK_BASE_URL }}/crm.timeline.comment.add",
+        "url": "={{ $env.BITRIX_PROD_URL }}/crm.timeline.comment.add",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

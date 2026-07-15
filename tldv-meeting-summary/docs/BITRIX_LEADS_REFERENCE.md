@@ -4,8 +4,9 @@ For **standard CRM Lead** module (bukan SPA seperti Project 1).
 
 ## Identity
 
-- Domain: `askarasoftdemo.bitrix24.com` (same as Project 1)
-- Webhook base: `https://askarasoftdemo.bitrix24.com/rest/1177/<TOKEN>/` (reuse Project 1 token)
+- Domain: `askarasoft.bitrix24.com` (PRODUCTION — beda dari Project 1 yang di demo)
+- Webhook base: `https://askarasoft.bitrix24.com/rest/1/<TOKEN>/` (user_id `1`, token disimpan di env `BITRIX_PROD_URL`)
+- ⚠️ Berbeda dengan Project 1 (SPA Proposal Estimation) yang point ke `askarasoftdemo.bitrix24.com` (demo, SPA 2098 hanya ada di sana)
 
 ## Endpoints We Use
 
