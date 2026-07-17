@@ -1,7 +1,24 @@
 # n8n Workflow Import Guide — TLDV Meeting Summary
 
-> File workflow: `tldv-meeting-summary/workflow/tldv-meeting-summary.json`
-> Tujuan: import ke n8n instance yang sudah ada, jadi workflow kedua (Project 1 tetap jalan).
+> Ada **2 versi** workflow:
+> - `tldv-meeting-summary.json` — **v1 baseline** (13 nodes, tested & stable). Cukup post AI summary sebagai timeline comment ke Bitrix Lead. Rollback safe.
+> - `tldv-meeting-summary-with-proposal.json` — **v2 extended** (19 nodes). Sama seperti v1 + auto-create SPA item di "Proposal & Quotation" (entityTypeId=1070) kalau AI classifier deteksi Next Action minta buat proposal/penawaran.
+>
+> Currently di production: v2. Kalau v2 ada masalah, tinggal import ulang dari `tldv-meeting-summary.json` (v1) untuk rollback ke state stable.
+
+## Perbedaan Singkat
+
+| Aspek | v1 (baseline) | v2 (with-proposal) |
+|---|---|---|
+| Node count | 13 | 19 |
+| Terminal happy path | "Bitrix: Post Timeline Comment" | "Log Proposal Result" |
+| AI calls per meeting | 1 (summarize) | 2 (summarize + classify) |
+| Latency | ~10-15s | ~20-30s |
+| Cost per meeting | ~Rp 100-200 | ~Rp 200-400 |
+| Extra Bitrix API | none | `crm.item.add` (SPA 1070) |
+| Extra env var | none | reuses `BITRIX_PROD_URL` |
+
+Tujuan: import ke n8n instance yang sudah ada, jadi workflow kedua (Project 1 tetap jalan).
 
 ## Prerequisites (sudah selesai)
 

@@ -1,5 +1,5 @@
 {
-  "name": "TLDV Meeting Summary → Bitrix Lead Comment",
+  "name": "TLDV Meeting Summary → Bitrix Lead Comment + Auto Create Proposal",
   "nodes": [
     {
       "parameters": {
@@ -332,6 +332,151 @@
         -60,
         400
       ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cp1",
+              "name": "classifier_prompt",
+              "value": "=Analisa summary meeting berikut. Deteksi apakah ada action item yang minta membuat proposal, penawaran, quotation, atau initial pricing.\n\nOutput JSON PERSIS format ini (tanpa markdown code block, tanpa penjelasan tambahan):\n{\n  \"should_create\": true|false,\n  \"reason\": \"penjelasan singkat kenapa true/false\",\n  \"suggested_title\": \"judul proposal yang natural (kosongkan kalau should_create=false)\"\n}\n\n== KRITERIA should_create=true ==\n- Ada action item eksplisit meminta buat proposal / penawaran / quotation / initial pricing / RFP response\n- Ada next step yang butuh dokumen proposal formal\n- Client meminta pricing / quote / offer\n\n== KRITERIA should_create=false ==\n- Meeting cuma diskusi tanpa action item mengarah ke proposal\n- Semua action items internal saja (research, follow-up email, meeting lanjutan tanpa dokumen)\n- Tidak ada penyebutan proposal/penawaran/quotation di action items atau next steps\n\n== INPUT ==\nMeeting Summary:\n{{ $('Extract AI Summary').item.json.ai_summary }}\n\nLead Info:\n- Lead ID: {{ $('Parse Lead ID from Title').item.json.lead_id }}\n- Lead Title: {{ $('Bitrix: Get Lead (validate)').item.json.result?.TITLE }}\n\nRESPOND WITH JSON ONLY:",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-build-classifier-prompt",
+      "name": "Build Classifier Prompt (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.5\",\n  \"messages\": [\n    {\"role\": \"user\", \"content\": {{ JSON.stringify($json.classifier_prompt) }} }\n  ],\n  \"max_completion_tokens\": 3000\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "node-call-classifier",
+      "name": "Call OpenAI Classifier (gpt-5.5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1260,
+        100
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Node: Parse Classifier Response\n// Tujuan: Extract JSON dari AI response, safe fallback ke should_create=false\n//         kalau AI down atau return invalid JSON.\n//         Enrich dengan lead_id + assigned_by_id untuk downstream Bitrix Add.\n// =============================================================================\n\nconst input = $input.item.json;\nconst leadData = $('Bitrix: Get Lead (validate)').item?.json?.result || {};\nconst leadId = $('Parse Lead ID from Title').item.json.lead_id;\n\n// Fallback response (used if anything fails)\nconst fallback = {\n  should_create: false,\n  reason: 'Classifier failed (default skip)',\n  suggested_title: '',\n  lead_id: leadId,\n  assigned_by_id: parseInt(leadData.ASSIGNED_BY_ID) || 1\n};\n\n// Path 1: HTTP node errored (choices missing, or error field present)\nif (!input.choices || input.error) {\n  fallback.reason = 'Classifier AI call failed: ' + JSON.stringify(input.error || input).substring(0, 300);\n  return { json: fallback };\n}\n\n// Path 2: Extract content string\nconst content = input.choices?.[0]?.message?.content || '';\n\n// Parse JSON (strip markdown fences if AI adds them)\nlet parsed;\ntry {\n  const cleaned = content.replace(/```json\\s*/g, '').replace(/```/g, '').trim();\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  fallback.reason = 'AI returned invalid JSON. Raw: ' + content.substring(0, 300);\n  return { json: fallback };\n}\n\n// Success path: return normalized decision\nreturn {\n  json: {\n    should_create: parsed.should_create === true,\n    reason: parsed.reason || '',\n    suggested_title: parsed.suggested_title || `Proposal - ${leadData.TITLE || 'Untitled'}`,\n    lead_id: leadId,\n    assigned_by_id: parseInt(leadData.ASSIGNED_BY_ID) || 1\n  }\n};"
+      },
+      "id": "node-parse-classifier",
+      "name": "Parse Classifier Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "sc1",
+              "leftValue": "={{ $json.should_create }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-if-should-create",
+      "name": "IF Should Create Proposal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_PROD_URL }}/crm.item.add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"entityTypeId\": 1070,\n  \"fields\": {\n    \"title\": {{ JSON.stringify($json.suggested_title) }},\n    \"assignedById\": {{ $json.assigned_by_id }},\n    \"categoryId\": 31,\n    \"stageId\": \"DT1070_31:NEW\",\n    \"ufCrm11CustomerProposal\": {{ JSON.stringify(`L_${$json.lead_id}`) }}\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-add-spa",
+      "name": "Bitrix: Add SPA Proposal Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =============================================================================\n// Node: Log Proposal Result\n// Tujuan: Comprehensive log SEMUA path (skipped/success/error) untuk troubleshooting.\n//         Input bisa dari 2 upstream:\n//           - IF Should Create? false branch: {should_create:false, reason, ...}\n//           - Bitrix Add SPA HTTP output (success or error with onError=continue)\n// =============================================================================\n\nconst input = $input.item.json;\nconst parseData = $('Parse Lead ID from Title').item?.json || {};\nconst classifyData = $('Parse Classifier Response').item?.json || {};\n\nlet path, details;\n\nif (input.should_create === false) {\n  // Came from IF false branch\n  path = 'skipped';\n  details = { reason: input.reason };\n} else if (input.result?.item?.id) {\n  // Came from Add SPA HTTP success\n  path = 'success';\n  details = {\n    spa_item_id: input.result.item.id,\n    title: input.result.item.title,\n    lead_id: classifyData.lead_id\n  };\n} else {\n  // Came from Add SPA HTTP error (onError=continueRegularOutput passed error through)\n  path = 'error';\n  details = {\n    reason: 'crm.item.add failed',\n    response: JSON.stringify(input).substring(0, 500),\n    attempted_title: classifyData.suggested_title,\n    attempted_lead_id: classifyData.lead_id,\n    attempted_assigned_by: classifyData.assigned_by_id\n  };\n}\n\nconsole.log(`[TLDV Proposal ${path.toUpperCase()}]`, {\n  meeting_id: parseData.meeting_id,\n  meeting_name: parseData.meeting_name,\n  classifier_reason: classifyData.reason,\n  ...details\n});\n\nreturn {\n  json: {\n    logged: true,\n    path,\n    ...details\n  }\n};"
+      },
+      "id": "node-log-proposal",
+      "name": "Log Proposal Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2140,
+        100
+      ]
     }
   ],
   "connections": {
@@ -470,6 +615,79 @@
           }
         ]
       ]
+    },
+    "Bitrix: Post Timeline Comment": {
+      "main": [
+        [
+          {
+            "node": "Build Classifier Prompt (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Classifier Prompt (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "Call OpenAI Classifier (gpt-5.5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenAI Classifier (gpt-5.5)": {
+      "main": [
+        [
+          {
+            "node": "Parse Classifier Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classifier Response": {
+      "main": [
+        [
+          {
+            "node": "IF Should Create Proposal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Should Create Proposal?": {
+      "main": [
+        [
+          {
+            "node": "Bitrix: Add SPA Proposal Item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Proposal Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bitrix: Add SPA Proposal Item": {
+      "main": [
+        [
+          {
+            "node": "Log Proposal Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -483,7 +701,7 @@
   },
   "active": false,
   "pinData": {},
-  "versionId": "v1-baseline-2026-07-17",
+  "versionId": "v2-with-proposal-2026-07-17",
   "meta": {
     "templateCredsSetupCompleted": false
   },
