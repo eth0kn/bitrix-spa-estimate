@@ -1,0 +1,118 @@
+{
+  "ufCrm8Qref": {
+    "type": "string",
+    "title": "Quotation Ref"
+  },
+  "ufCrm8QuotationDocx": {
+    "type": "file",
+    "title": "Quotation DOCX"
+  },
+  "ufCrm8Product": {
+    "type": "string",
+    "title": "Product"
+  },
+  "ufCrm8Width": {
+    "type": "string",
+    "title": "Width"
+  },
+  "ufCrm8Length": {
+    "type": "string",
+    "title": "Length"
+  },
+  "ufCrm8Frame": {
+    "type": "string",
+    "title": "Frame"
+  },
+  "ufCrm8Profile": {
+    "type": "string",
+    "title": "Profile"
+  },
+  "ufCrm8CanvasMaterial": {
+    "type": "string",
+    "title": "Canvas Material"
+  },
+  "ufCrm8Colour": {
+    "type": "string",
+    "title": "Colour"
+  },
+  "ufCrm8QtySideSupport": {
+    "type": "string",
+    "title": "Qty Side Support"
+  },
+  "ufCrm8RoofCanvas": {
+    "type": "string",
+    "title": "Roof Canvas"
+  },
+  "ufCrm8Sidewall": {
+    "type": "string",
+    "title": "Sidewall"
+  },
+  "ufCrm8SidewallOption": {
+    "type": "string",
+    "title": "Sidewall Option"
+  },
+  "ufCrm8GableEndCanvasDetails": {
+    "type": "string",
+    "title": "Gable End Canvas Details"
+  },
+  "ufCrm8Gutter": {
+    "type": "string",
+    "title": "Gutter"
+  },
+  "ufCrm8Door": {
+    "type": "string",
+    "title": "Door"
+  },
+  "ufCrm8DoorQty": {
+    "type": "string",
+    "title": "Door Qty"
+  },
+  "ufCrm8Accessories": {
+    "type": "string",
+    "title": "Accessories"
+  },
+  "ufCrm8QuotationDate": {
+    "type": "date",
+    "title": "Quotation Date"
+  },
+  "ufCrm8LineItemNo": {
+    "type": "integer",
+    "title": "Line Item No"
+  },
+  "ufCrm8UnitPriceRm": {
+    "type": "double",
+    "title": "Unit Price RM"
+  },
+  "ufCrm8LineTotalRm": {
+    "type": "double",
+    "title": "Line Total RM"
+  },
+  "ufCrm8GrandTotalRm": {
+    "type": "double",
+    "title": "Grand Total RM"
+  },
+  "ufCrm8StructureStr": {
+    "type": "string",
+    "title": "Structure"
+  },
+  "ufCrm8CornerTypeStr": {
+    "type": "string",
+    "title": "Corner Type"
+  },
+  "ufCrm8SideSupportTypeStr": {
+    "type": "string",
+    "title": "Side Support Type"
+  },
+  "ufCrm8GroundAnchoringS": {
+    "type": "string",
+    "title": "Ground Anchoring"
+  },
+  "ufCrm8GableEndCanvasS": {
+    "type": "string",
+    "title": "Gable End Canvas"
+  },
+  "ufCrm8GableEndStructureS": {
+    "type": "string",
+    "title": "Gable End Structure"
+  }
+}

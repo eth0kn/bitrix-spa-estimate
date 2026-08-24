@@ -1,0 +1,357 @@
+{
+  "name": "Product Image Extraction (SPA 1038)",
+  "id": "KqMkCNxGIa11s6Tt",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-image-extract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1600, 400],
+      "webhookId": "product-image-extract"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "itemId",
+              "value": "={{ $json.body?.item_id || $json.body?.data?.FIELDS?.ID || $json.query?.item_id || $json.body?.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-id",
+      "name": "Extract Item ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-1400, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_TFSSB_URL }}/crm.item.get",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entityTypeId: 1038, id: parseInt($json.itemId) }) }}",
+        "options": {}
+      },
+      "id": "bitrix-get-item",
+      "name": "Bitrix: Get Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2, "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "operator": { "type": "number", "operation": "gt" },
+              "leftValue": "={{ $json.result?.item?.ufCrm8QuotationDocx?.id || 0 }}",
+              "rightValue": 0
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-has-file",
+      "name": "IF Has File",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1000, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json.result.item;\nconst file = item.ufCrm8QuotationDocx;\nconst fileObj = Array.isArray(file) ? file[0] : file;\nconst url = fileObj.urlMachine || fileObj.url || fileObj.downloadUrl;\nreturn [{ json: { itemId: item.id, fileUrl: url, stageId: item.stageId } }];"
+      },
+      "id": "extract-file-url",
+      "name": "Extract File URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.fileUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "fullResponse": true,
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $input.first();\nconst headers = inp.json?.headers || {};\nlet contentType = (headers['content-type'] || headers['Content-Type'] || '').toLowerCase();\nlet disposition = headers['content-disposition'] || headers['Content-Disposition'] || '';\nlet fileName = 'file';\nconst m = disposition.match(/filename\\*?=(?:UTF-8'')?\"?([^\";]+)\"?/i);\nif (m) fileName = decodeURIComponent(m[1]);\nlet format = 'other';\nlet mimeType = 'application/octet-stream';\nif (contentType.startsWith('image/')) {\n  format = 'image';\n  mimeType = contentType.split(';')[0];\n} else if (contentType.includes('pdf')) {\n  format = 'pdf';\n  mimeType = 'application/pdf';\n} else if (contentType.includes('wordprocessingml') || contentType.includes('msword') || fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc')) {\n  format = 'docx';\n  mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';\n} else {\n  // Fallback: check magic bytes\n  const bin = inp.binary?.data;\n  if (bin && bin.data) {\n    const first4 = Buffer.from(bin.data, 'base64').slice(0, 4).toString('hex');\n    if (first4.startsWith('89504e47')) { format = 'image'; mimeType = 'image/png'; }\n    else if (first4.startsWith('ffd8ff')) { format = 'image'; mimeType = 'image/jpeg'; }\n    else if (first4.startsWith('25504446')) { format = 'pdf'; mimeType = 'application/pdf'; }\n    else if (first4.startsWith('504b0304')) { format = 'docx'; mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }\n  }\n}\nconst itemId = $('Extract File URL').first().json.itemId;\nreturn [{ json: { itemId, format, mimeType, fileName }, binary: inp.binary }];"
+      },
+      "id": "detect-format",
+      "name": "Detect Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "version": 2 }, "combinator": "and", "conditions": [{ "id": "r1", "leftValue": "={{ $json.format }}", "rightValue": "docx", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "docx" },
+            { "conditions": { "options": { "version": 2 }, "combinator": "and", "conditions": [{ "id": "r2", "leftValue": "={{ $json.format }}", "rightValue": "other", "operator": { "type": "string", "operation": "equals" } }] }, "outputKey": "other" }
+          ]
+        },
+        "options": { "allMatchingOutputs": false, "fallbackOutput": "extra" }
+      },
+      "id": "switch-format",
+      "name": "Switch: Format",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [-200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gotenberg:3000/forms/libreoffice/convert",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "files", "parameterType": "formBinaryData", "inputDataFieldName": "data" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file", "outputPropertyName": "data" } } }
+      },
+      "id": "gotenberg-convert",
+      "name": "Gotenberg: DOCX->PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $input.first();\nconst binary = inp.binary?.data;\nif (!binary) throw new Error('Missing binary data in Build AI Content');\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst b64 = buffer.toString('base64');\nconst detected = $('Detect Format').first().json;\nconst { itemId, format, fileName } = detected;\nlet contentPart;\nif (format === 'image') {\n  contentPart = { type: 'image_url', image_url: { url: `data:${detected.mimeType};base64,${b64}`, detail: 'high' } };\n} else {\n  const cleanName = (fileName || 'quotation').replace(/\\.(docx|doc)$/i, '.pdf');\n  contentPart = { type: 'file', file: { filename: cleanName.endsWith('.pdf') ? cleanName : cleanName + '.pdf', file_data: `data:application/pdf;base64,${b64}` } };\n}\nconst systemPrompt = \"You are a precise data extractor for tent quotations. Extract every line item and its full technical specifications. Output ONLY valid JSON — no markdown, no commentary. Match spec taxonomy exactly (Product, Width, Length, Frame, Profile, Canvas Material, Colour, Structure, Corner Type, Side Support Type, Qty Side Support, Ground Anchoring, Roof Canvas, Sidewall, Sidewall Option, Gable End Canvas, Gable End Canvas Details, Gable End Structure, Gutter, Door, Door Qty, Accessories). Use empty string for missing fields. Numbers as numbers, dates as YYYY-MM-DD. Currency values as plain numbers (no RM/comma).\";\nconst userText = `Extract quotation data as JSON with this exact schema:\n{\n  \"quotation_ref\": string,\n  \"quotation_date\": string (YYYY-MM-DD),\n  \"grand_total_rm\": number,\n  \"line_items\": [\n    {\n      \"line_no\": number,\n      \"product\": string,\n      \"unit_price_rm\": number,\n      \"line_total_rm\": number,\n      \"specs\": {\n        \"width\": string, \"length\": string, \"frame\": string, \"profile\": string,\n        \"canvas_material\": string, \"colour\": string, \"structure\": string,\n        \"corner_type\": string, \"side_support_type\": string, \"qty_side_support\": string,\n        \"ground_anchoring\": string, \"roof_canvas\": string, \"sidewall\": string,\n        \"sidewall_option\": string, \"gable_end_canvas\": string,\n        \"gable_end_canvas_details\": string, \"gable_end_structure\": string,\n        \"gutter\": string, \"door\": string, \"door_qty\": string, \"accessories\": string\n      }\n    }\n  ]\n}`;\nconst aiBody = {\n  model: 'gpt-5.5',\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: [ { type: 'text', text: userText }, contentPart ] }\n  ],\n  max_completion_tokens: 8000,\n  response_format: { type: 'json_object' }\n};\nreturn [{ json: { itemId, format, fileName, aiBody } }];"
+      },
+      "id": "build-ai-content",
+      "name": "Build AI Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.aiBody) }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "openai-extract",
+      "name": "OpenAI: Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst raw = resp.choices?.[0]?.message?.content;\nif (!raw) throw new Error('OpenAI returned no content');\nlet data;\ntry { data = typeof raw === 'string' ? JSON.parse(raw) : raw; }\ncatch (e) { throw new Error('AI JSON parse failed: ' + raw.slice(0, 300)); }\nconst itemId = $('Detect Format').first().json.itemId;\nconst items = (data.line_items || []).map((li, idx) => ({\n  json: {\n    isFirst: idx === 0,\n    origItemId: itemId,\n    quotationRef: data.quotation_ref || '',\n    quotationDate: data.quotation_date || '',\n    grandTotalRm: data.grand_total_rm || 0,\n    lineNo: li.line_no || (idx + 1),\n    product: li.product || '',\n    unitPriceRm: li.unit_price_rm || 0,\n    lineTotalRm: li.line_total_rm || 0,\n    specs: li.specs || {}\n  }\n}));\nif (items.length === 0) throw new Error('AI returned no line items');\nreturn items;"
+      },
+      "id": "parse-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst fields = {\n  ufCrm8Qref: d.quotationRef,\n  ufCrm8QuotationDate: d.quotationDate || null,\n  ufCrm8GrandTotalRm: d.grandTotalRm,\n  ufCrm8LineItemNo: d.lineNo,\n  ufCrm8Product: d.product,\n  ufCrm8UnitPriceRm: d.unitPriceRm,\n  ufCrm8LineTotalRm: d.lineTotalRm,\n  ufCrm8Width: d.specs.width || '',\n  ufCrm8Length: d.specs.length || '',\n  ufCrm8Frame: d.specs.frame || '',\n  ufCrm8Profile: d.specs.profile || '',\n  ufCrm8CanvasMaterial: d.specs.canvas_material || '',\n  ufCrm8Colour: d.specs.colour || '',\n  ufCrm8StructureStr: d.specs.structure || '',\n  ufCrm8CornerTypeStr: d.specs.corner_type || '',\n  ufCrm8SideSupportTypeStr: d.specs.side_support_type || '',\n  ufCrm8QtySideSupport: d.specs.qty_side_support || '',\n  ufCrm8GroundAnchoringS: d.specs.ground_anchoring || '',\n  ufCrm8RoofCanvas: d.specs.roof_canvas || '',\n  ufCrm8Sidewall: d.specs.sidewall || '',\n  ufCrm8SidewallOption: d.specs.sidewall_option || '',\n  ufCrm8GableEndCanvasS: d.specs.gable_end_canvas || '',\n  ufCrm8GableEndCanvasDetails: d.specs.gable_end_canvas_details || '',\n  ufCrm8GableEndStructureS: d.specs.gable_end_structure || '',\n  ufCrm8Gutter: d.specs.gutter || '',\n  ufCrm8Door: d.specs.door || '',\n  ufCrm8DoorQty: d.specs.door_qty || '',\n  ufCrm8Accessories: d.specs.accessories || ''\n};\nif (d.isFirst) {\n  return [{ json: { method: 'update', itemId: d.origItemId, fields, origItemId: d.origItemId } }];\n} else {\n  const title = `${d.quotationRef || 'Quotation'} — Line ${d.lineNo}`;\n  return [{ json: { method: 'add', fields: { ...fields, title, categoryId: 16 }, origItemId: d.origItemId } }];\n}"
+      },
+      "id": "build-bitrix-payload",
+      "name": "Build Bitrix Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "version": 2 },
+          "combinator": "and",
+          "conditions": [
+            { "id": "u1", "leftValue": "={{ $json.method }}", "rightValue": "update", "operator": { "type": "string", "operation": "equals" } }
+          ]
+        }
+      },
+      "id": "if-is-update",
+      "name": "IF Update",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_TFSSB_URL }}/crm.item.update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entityTypeId: 1038, id: $json.itemId, fields: $json.fields }) }}",
+        "options": {}
+      },
+      "id": "bitrix-update",
+      "name": "Bitrix: Update Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_TFSSB_URL }}/crm.item.add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entityTypeId: 1038, fields: $json.fields }) }}",
+        "options": {}
+      },
+      "id": "bitrix-add",
+      "name": "Bitrix: Add Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_TFSSB_URL }}/crm.timeline.comment.add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { ENTITY_ID: $('Detect Format').first().json.itemId, ENTITY_TYPE: 'DYNAMIC_1038', COMMENT: '[b]Unsupported file format[/b]\\nFile: ' + $('Detect Format').first().json.fileName + '\\n\\nOnly PNG/JPG, PDF, and DOCX are supported. Please re-upload in one of these formats.' } }) }}",
+        "options": {}
+      },
+      "id": "comment-unsupported",
+      "name": "Comment: Unsupported",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"no_file\" }",
+        "options": {}
+      },
+      "id": "respond-nofile",
+      "name": "Respond: No File",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-800, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"unsupported_format\" }",
+        "options": {}
+      },
+      "id": "respond-unsupported",
+      "name": "Respond: Unsupported",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [200, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Extract Item ID", "type": "main", "index": 0 }]] },
+    "Extract Item ID": { "main": [[{ "node": "Bitrix: Get Item", "type": "main", "index": 0 }]] },
+    "Bitrix: Get Item": { "main": [[{ "node": "IF Has File", "type": "main", "index": 0 }]] },
+    "IF Has File": {
+      "main": [
+        [{ "node": "Extract File URL", "type": "main", "index": 0 }],
+        [{ "node": "Respond: No File", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract File URL": { "main": [[{ "node": "Download File", "type": "main", "index": 0 }]] },
+    "Download File": { "main": [[{ "node": "Detect Format", "type": "main", "index": 0 }]] },
+    "Detect Format": { "main": [[{ "node": "Switch: Format", "type": "main", "index": 0 }]] },
+    "Switch: Format": {
+      "main": [
+        [{ "node": "Gotenberg: DOCX->PDF", "type": "main", "index": 0 }],
+        [{ "node": "Comment: Unsupported", "type": "main", "index": 0 }],
+        [{ "node": "Build AI Content", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gotenberg: DOCX->PDF": { "main": [[{ "node": "Build AI Content", "type": "main", "index": 0 }]] },
+    "Build AI Content": { "main": [[{ "node": "OpenAI: Extract", "type": "main", "index": 0 }]] },
+    "OpenAI: Extract": { "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]] },
+    "Parse AI Response": { "main": [[{ "node": "Build Bitrix Payload", "type": "main", "index": 0 }]] },
+    "Build Bitrix Payload": { "main": [[{ "node": "IF Update", "type": "main", "index": 0 }]] },
+    "IF Update": {
+      "main": [
+        [{ "node": "Bitrix: Update Item", "type": "main", "index": 0 }],
+        [{ "node": "Bitrix: Add Item", "type": "main", "index": 0 }]
+      ]
+    },
+    "Bitrix: Update Item": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Bitrix: Add Item": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Comment: Unsupported": { "main": [[{ "node": "Respond: Unsupported", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "product-image-extraction" }
+}

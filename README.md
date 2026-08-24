@@ -1,14 +1,15 @@
 # Bitrix24 Integrations — n8n + AI
 
-Monorepo untuk **2 integrasi Bitrix24** yang share n8n instance + AI provider di 1 VPS.
+Monorepo untuk **integrasi Bitrix24** yang share n8n instance + AI provider di 1 VPS.
 Customer: **PT Len / Askarasoft** — PIC Michael Chandra.
 
 ## Projects
 
-| # | Project | Folder | Trigger | Bitrix Instance | Bitrix Action |
-|---|---|---|---|---|---|
-| **1** | Proposal Estimation | [`proposal-estimation/`](proposal-estimation/) | Bitrix Automation Rule (SPA 2098 stage change) | `askarasoftdemo.bitrix24.com` (DEMO) | Write to SPA field |
-| **2** | TLDV Meeting Summary | [`tldv-meeting-summary/`](tldv-meeting-summary/) | TLDV `TranscriptReady` webhook | `askarasoft.bitrix24.com` (PRODUCTION) | Post Lead timeline comment + auto-create SPA "Proposal & Quotation" |
+| # | Project | Folder | Status | Trigger | Bitrix Instance | Bitrix Action |
+|---|---|---|---|---|---|---|
+| **1** | Proposal Estimation | [`proposal-estimation/`](proposal-estimation/) | ✅ Live | Bitrix Automation Rule (SPA 2098 stage change) | `askarasoftdemo.bitrix24.com` (DEMO) | Write to SPA field |
+| **2** | TLDV Meeting Summary | [`tldv-meeting-summary/`](tldv-meeting-summary/) | ✅ Live | TLDV `TranscriptReady` webhook | `askarasoft.bitrix24.com` (PRODUCTION) | Post Lead timeline comment + auto-create SPA "Proposal & Quotation" |
+| **3** | Product Image Extraction | [`product-image-extraction/`](product-image-extraction/) | 🚧 POC ready to deploy (deadline Senin) | Bitrix Automation Rule (SPA 1038 stage change) | `tfssbdemo.bitrix24.com` (DEMO) | Extract quotation (image/PDF/DOCX) → populate 22 spec + 6 meta field per line item |
 
 Both projects share:
 - **VPS**: same server, shared n8n stack
@@ -41,16 +42,21 @@ bitrix-integrations/
 │       ├── proposal-estimation.json
 │       └── IMPORT_GUIDE.md
 │
-└── tldv-meeting-summary/                  # ← Project 2
+├── tldv-meeting-summary/                  # ← Project 2
+│   ├── README.md
+│   ├── docs/
+│   │   ├── PRD.md
+│   │   ├── TLDV_API_REFERENCE.md
+│   │   └── BITRIX_LEADS_REFERENCE.md
+│   └── workflow/
+│       ├── tldv-meeting-summary.json                     # v1 baseline (comment only)
+│       ├── tldv-meeting-summary-with-proposal.json       # v2 extended (with auto-create SPA)
+│       └── IMPORT_GUIDE.md
+│
+└── product-image-extraction/              # ← Project 3 (POC in planning)
     ├── README.md
-    ├── docs/
-    │   ├── PRD.md
-    │   ├── TLDV_API_REFERENCE.md
-    │   └── BITRIX_LEADS_REFERENCE.md
-    └── workflow/
-        ├── tldv-meeting-summary.json                     # v1 baseline (comment only)
-        ├── tldv-meeting-summary-with-proposal.json       # v2 extended (with auto-create SPA)
-        └── IMPORT_GUIDE.md
+    ├── docs/                              # PRD, Excel attributes, sample images TBD
+    └── workflow/                          # n8n workflow TBD
 ```
 
 ## Quick Start (kalau baru clone)
@@ -59,6 +65,7 @@ bitrix-integrations/
 2. **Pilih project** yang mau diintegrasi:
    - Project 1: [`proposal-estimation/README.md`](proposal-estimation/README.md)
    - Project 2: [`tldv-meeting-summary/README.md`](tldv-meeting-summary/README.md)
+   - Project 3: [`product-image-extraction/README.md`](product-image-extraction/README.md)
 3. Follow project-specific import guide di masing-masing folder
 
 ## Live Endpoints

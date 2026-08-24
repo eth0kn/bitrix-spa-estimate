@@ -54,6 +54,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       TLDV_API_KEY: ${TLDV_API_KEY}
       BITRIX_PROD_URL: ${BITRIX_PROD_URL}
+      BITRIX_TFSSB_URL: ${BITRIX_TFSSB_URL}
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -77,6 +78,19 @@ services:
       - n8n-internal
     depends_on:
       - n8n
+
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: n8n-gotenberg
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--api-timeout=120s"
+      - "--libreoffice-restart-after=10"
+      - "--log-level=info"
+    networks:
+      - n8n-internal
 
 networks:
   n8n-internal:
