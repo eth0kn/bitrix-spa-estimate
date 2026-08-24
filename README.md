@@ -1,116 +1,73 @@
-# Bitrix24 SPA Proposal Estimation — n8n + AI Integration
+# Bitrix24 Integrations — n8n + AI
 
-Otomatisasi estimasi mandays proposal proyek via integrasi **Bitrix24 → n8n → AI (OpenAI/OpenRouter) → Bitrix24**.
+Monorepo untuk **2 integrasi Bitrix24** yang share n8n instance + AI provider di 1 VPS.
+Customer: **PT Len / Askarasoft** — PIC Michael Chandra.
 
-Sales mengisi form di Bitrix24 SPA, lalu sistem otomatis memanggil AI untuk generate breakdown estimasi mandays dan menulis hasilnya kembali ke field di Bitrix24.
+## Projects
 
-## Flow
+| # | Project | Folder | Trigger | Bitrix Instance | Bitrix Action |
+|---|---|---|---|---|---|
+| **1** | Proposal Estimation | [`proposal-estimation/`](proposal-estimation/) | Bitrix Automation Rule (SPA 2098 stage change) | `askarasoftdemo.bitrix24.com` (DEMO) | Write to SPA field |
+| **2** | TLDV Meeting Summary | [`tldv-meeting-summary/`](tldv-meeting-summary/) | TLDV `TranscriptReady` webhook | `askarasoft.bitrix24.com` (PRODUCTION) | Post Lead timeline comment + auto-create SPA "Proposal & Quotation" |
 
-```
-Sales fill form in Bitrix24 SPA "Proposal Estimation"
-        ↓ (stage moved to "Request AI Estimation")
-Bitrix24 Business Process → outbound webhook
-        ↓ POST { id: <item_id> }
-n8n Workflow
-        ├─ GET full item data via crm.item.get
-        ├─ Download & extract RFP PDF (if uploaded)
-        ├─ Map enum IDs → readable labels
-        ├─ Build prompt from editable template
-        ├─ Call OpenAI/OpenRouter
-        ├─ Parse response
-        └─ POST crm.item.update → write to AI Total Mandays Output + move stage to "Pending"
-        ↓
-Result visible in Bitrix24 detail view
-```
+Both projects share:
+- **VPS**: same server, shared n8n stack
+- **n8n instance**: https://n8n.askarasoft.com (HTTPS via Caddy)
+- **AI provider**: OpenAI (gpt-5.5 reasoning model)
+- **Deploy config**: [`deploy/`](deploy/) folder
 
 ## Repo Structure
 
 ```
-.
-├── docs/
-│   ├── PRD.md                     # Product Requirements Document
-│   └── BITRIX_SCHEMA_REFERENCE.md # Field codes, enum mappings, stage IDs
-├── deploy/
-│   ├── docker-compose.yml         # n8n + Postgres stack
-│   ├── .env.example               # Template for env vars (copy to .env)
+bitrix-integrations/
+├── README.md                              # This file — overview & routing
+├── .gitignore
+│
+├── deploy/                                # ← SHARED n8n stack (both projects)
+│   ├── docker-compose.yml                 # n8n + Postgres + Caddy stack
+│   ├── Caddyfile                          # HTTPS reverse proxy
+│   ├── .env.example                       # Env var template
 │   ├── .gitignore
-│   └── DEPLOYMENT_NOTES.md        # How to deploy, backup, rollback
-└── workflow/
-    ├── proposal-estimation.json   # n8n workflow (importable)
-    └── IMPORT_GUIDE.md            # How to import & test the workflow
+│   └── DEPLOYMENT_NOTES.md                # How to deploy, backup, rollback
+│
+├── proposal-estimation/                   # ← Project 1
+│   ├── README.md
+│   ├── docs/
+│   │   ├── PRD.md
+│   │   ├── BITRIX_SCHEMA_REFERENCE.md
+│   │   ├── BITRIX_BP_SETUP.md
+│   │   └── SYSTEM_FLOW.md
+│   └── workflow/
+│       ├── proposal-estimation.json
+│       └── IMPORT_GUIDE.md
+│
+└── tldv-meeting-summary/                  # ← Project 2
+    ├── README.md
+    ├── docs/
+    │   ├── PRD.md
+    │   ├── TLDV_API_REFERENCE.md
+    │   └── BITRIX_LEADS_REFERENCE.md
+    └── workflow/
+        ├── tldv-meeting-summary.json                     # v1 baseline (comment only)
+        ├── tldv-meeting-summary-with-proposal.json       # v2 extended (with auto-create SPA)
+        └── IMPORT_GUIDE.md
 ```
 
-## Quick Start
+## Quick Start (kalau baru clone)
 
-### 1. Prerequisites
+1. **Deploy shared infra** — [`deploy/DEPLOYMENT_NOTES.md`](deploy/DEPLOYMENT_NOTES.md)
+2. **Pilih project** yang mau diintegrasi:
+   - Project 1: [`proposal-estimation/README.md`](proposal-estimation/README.md)
+   - Project 2: [`tldv-meeting-summary/README.md`](tldv-meeting-summary/README.md)
+3. Follow project-specific import guide di masing-masing folder
 
-- VPS dengan Docker + Docker Compose
-- Bitrix24 instance dengan SPA "Proposal Estimation" (entityTypeId=2098)
-- API key dari OpenAI atau OpenRouter
-- Bitrix24 Inbound Webhook token
+## Live Endpoints
 
-### 2. Deploy n8n Stack
-
-```bash
-git clone https://github.com/eth0kn/bitrix-spa-estimate.git
-cd bitrix-spa-estimate/deploy
-cp .env.example .env
-# Edit .env, isi semua placeholder
-docker compose up -d
-```
-
-n8n akan accessible di `http://<N8N_PUBLIC_HOST>:5678`.
-
-### 3. Import Workflow
-
-Lihat detail di [`workflow/IMPORT_GUIDE.md`](workflow/IMPORT_GUIDE.md).
-
-Singkatnya:
-1. Login ke n8n → buat owner account (first visit)
-2. Workflows → Create → paste `workflow/proposal-estimation.json` ke canvas (Ctrl+V)
-3. Publish workflow
-4. Webhook URL siap dipakai: `http://<N8N_PUBLIC_HOST>:5678/webhook/bitrix-spa-estimate`
-
-### 4. Setup Bitrix24
-
-Lihat [`docs/BITRIX_SCHEMA_REFERENCE.md`](docs/BITRIX_SCHEMA_REFERENCE.md) untuk field codes & enum mappings.
-
-Di sisi Bitrix24:
-1. Buat custom fields di SPA 2098 sesuai schema reference
-2. Setup Business Process trigger: saat item move ke stage **"Request AI Estimation"** (`DT2098_891:PREPARATION`), fire webhook ke n8n
-3. Webhook payload minimal: `{"id": <item_id>}`
-
-### 5. Test
-
-```bash
-curl -X POST "http://<N8N_PUBLIC_HOST>:5678/webhook/bitrix-spa-estimate" \
-  -H "Content-Type: application/json" \
-  -d '{"id": <sample_item_id>}'
-```
-
-Cek hasil di Bitrix24 → field "AI Total Mandays Output" + stage akan ter-update.
-
-## Customization
-
-### Edit Prompt
-Buka workflow di n8n UI → klik node **"Build Prompt (EDIT ME)"** → edit text → save. Berlaku langsung untuk eksekusi berikutnya.
-
-### Tambah Field Input Baru
-1. Di Bitrix24: tambah custom field di SPA 2098
-2. Di n8n: edit node **"Map Enums → Labels"** (kalau enum) + node **"Build Prompt (EDIT ME)"** untuk include field baru
-
-### Ganti AI Model
-Klik node **"Call OpenAI (gpt-5.5)"** → edit field `jsonBody` → ganti string model:
-- `gpt-5.5` (default sekarang — reasoning model, kualitas tinggi, lebih lambat ~30-60s)
-- `gpt-5.5-mini` (lebih cepat, kualitas sedikit lebih rendah)
-- `gpt-5.4`, `gpt-5.4-nano` (faster, non-reasoning, support `temperature` & lebih hemat token)
-- `gpt-4o`, `gpt-4o-mini` (legacy generation, gunakan param `max_tokens`)
-- atau pakai OpenRouter dengan ganti URL ke `https://openrouter.ai/api/v1/chat/completions` + ganti auth header
-
-⚠️ **Note penting per model family:**
-- `gpt-5.5` reasoning model → **TIDAK support custom `temperature`** (forced default 1.0), butuh `max_completion_tokens` ≥4000 (reasoning tokens dimakan dulu)
-- `gpt-5.4` / `gpt-5.4-nano` → support `temperature`, pakai `max_completion_tokens`
-- `gpt-4.x` → support `temperature`, pakai `max_tokens` (deprecated param di model baru)
+| Endpoint | Purpose |
+|---|---|
+| https://n8n.askarasoft.com | n8n UI (owner login) |
+| https://n8n.askarasoft.com/webhook/bitrix-spa-estimate | Project 1 webhook (from Bitrix Automation Rule) |
+| https://n8n.askarasoft.com/webhook/tldv-transcript-ready | Project 2 webhook (from TLDV) |
 
 ## License
 

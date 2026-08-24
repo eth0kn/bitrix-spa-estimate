@@ -2,12 +2,27 @@
 
 | Field | Value |
 |---|---|
-| Document Version | 0.1 (Draft) |
-| Last Updated | 2026-07-08 |
-| Status | Draft — awaiting sign-off before implementation |
+| Document Version | 1.2 (Implemented + Extended) |
+| Last Updated | 2026-08-24 |
+| Status | ✅ Live in production (v2 workflow deployed) |
 | Project Codename | tldv-meeting-summary |
 | Customer | PT Len (via Askarasoft) — PIC: Michael Chandra |
-| Related Project | Project 1: Bitrix SPA Proposal Estimation (root folder) |
+| Related Project | Project 1: Bitrix SPA Proposal Estimation (`../proposal-estimation/`) |
+
+## Change Log
+
+| Version | Date | Change |
+|---|---|---|
+| 0.1 | 2026-07-08 | Initial draft — TLDV → n8n → OpenAI → Bitrix Lead comment |
+| 1.0 | 2026-07-09 | Implemented v1 baseline (13 nodes). Comment posting works. HTTPS via Caddy live. |
+| 1.1 | 2026-07-15 | **Critical fix**: TLDV real webhook payload uses `body.data.data` as array of segments (not `{transcript, segments}` object per initial research). Reconstruct transcript from segments. Also switched Bitrix from `askarasoftdemo` (demo) to `askarasoft` (production) via new env var `BITRIX_PROD_URL`. Verified: Comment #408245 posted with real transcript content to Lead 69503. |
+| 1.2 | 2026-07-17 | **Extension**: v2 workflow adds auto-create SPA "Proposal & Quotation" (entityTypeId=1070) when AI classifier detects action item requesting proposal. 6 new nodes appended after "Bitrix: Post Timeline Comment" (existing behavior preserved). Comprehensive Log Proposal Result for skipped/success/error paths. Verified end-to-end: SPA #621 auto-created for Test A, correctly skipped for Test B. |
+
+## Bitrix Instance Used
+
+**PRODUCTION** — `askarasoft.bitrix24.com` (Michael provided webhook token via `BITRIX_PROD_URL` env var). Lead real customer di sini.
+
+Different from Project 1 which uses `askarasoftdemo.bitrix24.com` (demo, karena SPA 2098 hanya ada di demo).
 
 ---
 
@@ -85,7 +100,7 @@ Customer ingin **mengotomatisasi**: begitu TLDV selesai bikin transcript, sistem
 | TLDV cloud | tldv.io / pasta.tldv.io | Meeting recording + transcript generation |
 | n8n workflow (this) | shared VPS n8n instance (port 5678) | Orchestration |
 | OpenAI API | api.openai.com | Summarization (gpt-5.5) |
-| Bitrix24 | askarasoftdemo.bitrix24.com | Lead source of truth + timeline UI |
+| Bitrix24 | askarasoft.bitrix24.com (PRODUCTION) | Lead source of truth + timeline UI |
 
 Shared with Project 1: n8n instance, Postgres, VPS, OpenAI key, Bitrix webhook token.
 

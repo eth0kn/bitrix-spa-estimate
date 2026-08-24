@@ -1,21 +1,21 @@
-# n8n Workflow Import Guide
+# n8n Workflow Import Guide — Project 1 (Proposal Estimation)
 
-> File workflow: `workflow/proposal-estimation.json`
+> File workflow: `proposal-estimation/workflow/proposal-estimation.json`
 > Tujuan: import workflow ke n8n yang sudah deployed di VPS.
 
 ## Prerequisites (sudah selesai)
 
-- ✅ n8n deployed di http://<YOUR_VPS_IP>:5678
-- ✅ Owner account dibuat (mknizar10@gmail.com)
-- ✅ Env vars `OPENROUTER_API_KEY`, `BITRIX_WEBHOOK_BASE_URL`, `BITRIX_ENTITY_TYPE_ID` sudah di-set di container
+- ✅ n8n deployed di https://n8n.askarasoft.com (HTTPS via Caddy)
+- ✅ Owner account (see `credentials.md` lokal untuk login)
+- ✅ Env vars `OPENAI_API_KEY`, `BITRIX_WEBHOOK_BASE_URL` (points to demo), `BITRIX_ENTITY_TYPE_ID=2098` sudah di-set di container
 
 ## Step-by-Step Import
 
 ### 1. Buka n8n UI
 
-URL: **http://<YOUR_VPS_IP>:5678**
+URL: **https://n8n.askarasoft.com**
 
-Login dengan email yang dipakai saat setup owner.
+Login dengan owner credentials.
 
 ### 2. Import Workflow JSON
 
@@ -23,11 +23,11 @@ Login dengan email yang dipakai saat setup owner.
 2. Di kanan atas, klik tombol **`+`** atau **"Create Workflow"**
 3. Di workflow editor kosong, klik **menu titik 3 (⋯)** di kanan atas
 4. Pilih **"Import from File"** atau **"Import from URL"**
-5. Pilih **"Import from File"** → upload file `proposal-estimation.json` dari folder lokal Mas:
+5. Pilih **"Import from File"** → upload file `proposal-estimation.json`:
    ```
-   C:\Users\KN\Documents\Projects\bitrix\workflow\proposal-estimation.json
+   C:\Users\KN\Documents\Projects\bitrix\proposal-estimation\workflow\proposal-estimation.json
    ```
-6. Workflow akan muncul dengan **15 node** terhubung jadi flow (termasuk 2 node baru untuk AI extraction RFP)
+6. Workflow akan muncul dengan **15 node** terhubung jadi flow (termasuk 2 node untuk AI RFP extraction)
 
 ### 3. Cek Setiap Node Tidak Ada Error
 
@@ -212,5 +212,5 @@ Setelah workflow active, kasih Michael info ini:
 Setelah Mas/Michael edit prompt di n8n UI:
 
 1. Export workflow: menu titik 3 → "Download" → save sebagai JSON
-2. Replace file `workflow/proposal-estimation.json` di repo lokal
+2. Replace file `proposal-estimation/workflow/proposal-estimation.json` di repo lokal
 3. (Opsional) commit ke Git untuk version control

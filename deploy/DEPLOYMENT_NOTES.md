@@ -2,12 +2,15 @@
 
 | | |
 |---|---|
-| **Deployed** | 2026-05-21 |
-| **VPS IP** | <YOUR_VPS_IP> |
+| **First Deployed** | 2026-05-21 |
+| **HTTPS Enabled** | 2026-07-09 (via Caddy) |
+| **VPS IP** | `<YOUR_VPS_IP>` (see credentials.md) |
+| **Public Domain** | n8n.askarasoft.com (HTTPS via Let's Encrypt) |
 | **OS** | Ubuntu 24.04.4 LTS |
-| **n8n Version** | 2.21.5 (latest as of deployment) |
+| **n8n Version** | 2.21.5+ |
 | **Stack Location** | `/opt/n8n-stack/` on VPS |
-| **Stack Mode** | HTTP only (Opsi A — IP+port, no domain/TLS) |
+| **Stack Mode** | HTTPS via Caddy reverse proxy |
+| **Serves Both** | Project 1 (`proposal-estimation/`) + Project 2 (`tldv-meeting-summary/`) |
 
 ---
 
@@ -15,33 +18,52 @@
 
 | Service | URL | Catatan |
 |---|---|---|
-| n8n UI | http://<YOUR_VPS_IP>:5678 | Set up owner account on first visit |
-| n8n Healthcheck | http://<YOUR_VPS_IP>:5678/healthz | Returns `{"status":"ok"}` |
-| Webhook base | http://<YOUR_VPS_IP>:5678/webhook/... | Pattern URL untuk webhook trigger |
+| n8n UI | **https://n8n.askarasoft.com** | HTTPS via Caddy — primary access |
+| Legacy HTTP | http://`<YOUR_VPS_IP>`:5678 | Masih listen (backward compat for Project 1 BP) |
+| Healthcheck | https://n8n.askarasoft.com/healthz | Returns `{"status":"ok"}` |
+| Webhook base | https://n8n.askarasoft.com/webhook/... | Pattern URL untuk webhook trigger |
 | Postgres | (internal only) | Tidak exposed ke publik |
+
+### Active Webhook Endpoints
+
+| Project | Path | Trigger |
+|---|---|---|
+| Project 1 (Proposal Estimation) | `/webhook/bitrix-spa-estimate` | Bitrix Automation Rule (SPA 2098 stage change) |
+| Project 2 (TLDV Meeting Summary) | `/webhook/tldv-transcript-ready` | TLDV `TranscriptReady` event |
 
 ---
 
 ## Credentials
 
-Lihat `deploy/.env.backup` — **JANGAN commit ke Git public!**
+Lihat `deploy/.env.backup` (git-ignored) + `credentials.md` (git-ignored) untuk complete reference.
 
-| Variable | Purpose |
-|---|---|
-| `POSTGRES_PASSWORD` | Password DB internal n8n |
-| `N8N_ENCRYPTION_KEY` | Key untuk encrypt credentials di n8n (jangan ganti setelah ada credentials tersimpan, akan kehilangan akses) |
+Env vars di container n8n (dari `deploy/.env`):
+
+| Variable | Purpose | Used By |
+|---|---|---|
+| `POSTGRES_PASSWORD` | DB internal password | Both (infra) |
+| `N8N_ENCRYPTION_KEY` | Encrypt stored credentials in n8n | Both (infra) — JANGAN ganti setelah ada credentials tersimpan |
+| `N8N_PUBLIC_HOST` | Public hostname for TLS (`n8n.askarasoft.com`) | Both (Caddy + n8n cookie config) |
+| `OPENAI_API_KEY` | AI provider | Both projects |
+| `BITRIX_WEBHOOK_BASE_URL` | Bitrix DEMO webhook base URL | Project 1 (SPA 2098) |
+| `BITRIX_ENTITY_TYPE_ID` | Default 2098 | Project 1 |
+| `BITRIX_PROD_URL` | Bitrix PRODUCTION webhook base URL | Project 2 (Lead + SPA 1070) |
+| `TLDV_API_KEY` | TLDV API for meeting metadata fetch | Project 2 |
 
 ---
 
 ## What's Running
 
-- 2 container Docker:
-  - `n8n` (port 5678 exposed publik)
+- 3 container Docker:
+  - `n8n` (port 5678 exposed publik untuk backward compat, primary access via Caddy)
   - `n8n-postgres` (internal only, di network `n8n-stack-internal`)
-- 2 named Docker volumes:
+  - `n8n-caddy` (port 80 + 443 exposed publik, reverse proxy ke n8n:5678, auto Let's Encrypt TLS)
+- 4 named Docker volumes:
   - `n8n-stack-n8n-data` — workflow, credentials, settings n8n
   - `n8n-stack-postgres-data` — DB postgres
-- Tidak menyentuh stack lain yang sudah ada di VPS (`aidms`, `traefik`, `weaviate`)
+  - `n8n-stack-caddy-data` — Caddy certificates & state
+  - `n8n-stack-caddy-config` — Caddy runtime config
+- Tidak menyentuh stack lain yang sudah ada di VPS (`aidms`, `traefik` on port 4200, `weaviate`)
 
 ---
 

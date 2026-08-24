@@ -17,10 +17,10 @@ memory.md
 # === Credentials quick-reference (local-only, NEVER push) ===
 credentials.md
 
-# === Customer-owned reference docs ===
-docs/apidocs_spa_proposal_estimation_update.pdf
-docs/pages/
-docs/apidocs_extracted.txt
+# === Customer-owned reference docs (Project 1 — moved to proposal-estimation/) ===
+proposal-estimation/docs/apidocs_spa_proposal_estimation_update.pdf
+proposal-estimation/docs/pages/
+proposal-estimation/docs/apidocs_extracted.txt
 
 # === OS / Editor ===
 .DS_Store

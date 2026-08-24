@@ -13,7 +13,7 @@ For **standard CRM Lead** module (bukan SPA seperti Project 1).
 ### 1. crm.lead.get — Get single lead by ID
 
 ```
-POST /rest/1177/<TOKEN>/crm.lead.get
+POST /rest/1/<TOKEN>/crm.lead.get
 Content-Type: application/json
 Body: { "ID": 4759 }
 ```
@@ -33,7 +33,7 @@ Response:
     "COMPANY_TITLE": "PT ABC",
     "OPPORTUNITY": "20000000",
     "CURRENCY_ID": "IDR",
-    "ASSIGNED_BY_ID": "1177",
+    "ASSIGNED_BY_ID": "15345",
     "DATE_CREATE": "2026-05-01T10:00:00+03:00",
     "COMMENTS": "..."
   }
@@ -45,7 +45,7 @@ Use this for **validation** before posting comment: if 404 or empty result → l
 ### 2. crm.lead.list — Search leads (fallback)
 
 ```
-POST /rest/1177/<TOKEN>/crm.lead.list
+POST /rest/1/<TOKEN>/crm.lead.list
 Content-Type: application/json
 Body: {
   "filter": { "ID": 4759 },
@@ -66,7 +66,7 @@ Pagination: fixed 50/page. Use `start` param, response has `next` + `total`.
 ### 3. crm.timeline.comment.add — Post comment to lead timeline
 
 ```
-POST /rest/1177/<TOKEN>/crm.timeline.comment.add
+POST /rest/1/<TOKEN>/crm.timeline.comment.add
 Content-Type: application/json
 Body: {
   "fields": {
@@ -84,7 +84,7 @@ Required fields:
 
 Optional:
 - `FILES` (array of `[filename, base64]` pairs)
-- `AUTHOR_ID` — NOT documented as param; defaults to webhook's owning user (1177)
+- `AUTHOR_ID` — NOT documented as param; defaults to webhook's owning user (`1` di production Bitrix)
 
 Response:
 ```json
@@ -109,7 +109,7 @@ Length limit not documented — practical safe limit ~20,000 chars. Chunk longer
 ## Sample Request (full)
 
 ```bash
-curl -X POST "https://askarasoftdemo.bitrix24.com/rest/1177/<TOKEN>/crm.timeline.comment.add" \
+curl -X POST "https://askarasoft.bitrix24.com/rest/1/<TOKEN>/crm.timeline.comment.add" \
   -H "Content-Type: application/json" \
   -d '{
     "fields": {
