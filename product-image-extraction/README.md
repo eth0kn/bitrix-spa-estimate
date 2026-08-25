@@ -5,16 +5,25 @@ Otomatisasi ekstraksi produk dari image / PDF / DOCX quotation → OpenAI → po
 
 ## Status
 
-🚧 **POC ready to deploy** — deadline Senin.
+🚧 **v2 in progress** — v1 POC live, v2 (Products tab + multi-quotation) approved & implementing.
 
+### v1 (LIVE, 2026-08-24)
 - ✅ Bitrix schema created (29 custom fields via API)
-- ✅ Gotenberg sidecar added to docker-compose (DOCX→PDF)
-- ✅ OpenAI PDF-direct extraction verified on 3 sample quotations (QT1/QT2/QT3)
-- ✅ n8n workflow JSON built (20 nodes, handles 4 attachment formats)
-- ⏳ Deploy env var + gotenberg to VPS (blocked: SSH key needs re-add)
-- ⏳ Import workflow to n8n instance
-- ⏳ Setup Bitrix Automation Rule trigger
-- ⏳ End-to-end test
+- ✅ Gotenberg sidecar deployed (DOCX→PDF conversion)
+- ✅ n8n workflow live (20 nodes) at `https://n8n.askarasoft.com/webhook/product-image-extract`
+- ✅ Bitrix Outbound Webhook auto-fire on stage "Prepare"
+- ✅ 4 attachment format handling: PNG/PDF/DOCX/other
+- ✅ Multi-line extraction (QT1 → 3 lines correctly)
+- ✅ Taxonomy hints in AI prompt untuk consistent output values
+- ✅ End-to-end verified
+
+### v2 + v3 (LIVE, 2026-08-25)
+- ✅ R6: Products tab populated via `crm.item.productrow.add` (ownerType `T40e` for SPA 1038)
+- ✅ R7: Multi-quotation logic in AI prompt (untested with real multi-quotation file, but code handles N quotations)
+- ✅ R8: TRUE SKU hierarchy — parent products in iblock 14, SKU offers in iblock 16 dengan 22 property attributes + parent link (CML2_LINK property 46)
+- ✅ R9: Dedup — parent by family name, SKU by variant name; idempotent re-fire
+- ✅ End-to-end verified dengan QT1 (PDF + PNG): 3 line items → 3 SKUs → 3 product rows
+- ✅ Delete-existing-rows retry logic (Bitrix delete sometimes silently fails on first call)
 
 ## Attachment Format Handling
 
@@ -33,8 +42,9 @@ Sales attach 1 quotation → AI extract semua line item → workflow:
 
 ## Docs
 
-- [PRD](docs/PRD.md)
-- [Bitrix Schema Reference](docs/BITRIX_SCHEMA_REFERENCE.md)
+- [PRD](docs/PRD.md) (includes v2 requirements)
+- [Conversation Log](docs/CONVERSATION_LOG.md) — Michael's WA requests + design decisions
+- [Bitrix Schema Reference](docs/BITRIX_SCHEMA_REFERENCE.md) — includes Products tab API
 - [Field Mapping (JSON)](docs/bitrix-field-mapping.json)
 - [Import Guide](workflow/IMPORT_GUIDE.md)
 - Sample files: `docs/Sample QT1/QT2/QT3….docx`

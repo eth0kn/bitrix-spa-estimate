@@ -9,7 +9,7 @@ Customer: **PT Len / Askarasoft** — PIC Michael Chandra.
 |---|---|---|---|---|---|---|
 | **1** | Proposal Estimation | [`proposal-estimation/`](proposal-estimation/) | ✅ Live | Bitrix Automation Rule (SPA 2098 stage change) | `askarasoftdemo.bitrix24.com` (DEMO) | Write to SPA field |
 | **2** | TLDV Meeting Summary | [`tldv-meeting-summary/`](tldv-meeting-summary/) | ✅ Live | TLDV `TranscriptReady` webhook | `askarasoft.bitrix24.com` (PRODUCTION) | Post Lead timeline comment + auto-create SPA "Proposal & Quotation" |
-| **3** | Product Image Extraction | [`product-image-extraction/`](product-image-extraction/) | 🚧 POC ready to deploy (deadline Senin) | Bitrix Automation Rule (SPA 1038 stage change) | `tfssbdemo.bitrix24.com` (DEMO) | Extract quotation (image/PDF/DOCX) → populate 22 spec + 6 meta field per line item |
+| **3** | Product Image Extraction | [`product-image-extraction/`](product-image-extraction/) | ✅ v1+v2+v3 Live | Bitrix Automation Rule (SPA 1038 stage change "Prepare") | `tfssbdemo.bitrix24.com` (DEMO) | Extract quotation (image/PDF/DOCX) → SPA custom fields + Products tab dengan TRUE SKU (parent+variant) + attribute properties + multi-quotation |
 
 Both projects share:
 - **VPS**: same server, shared n8n stack

@@ -1,0 +1,90 @@
+{
+  "WIDTH": {
+    "id": 100,
+    "name": "Width"
+  },
+  "LENGTH": {
+    "id": 102,
+    "name": "Length"
+  },
+  "FRAME": {
+    "id": 104,
+    "name": "Frame"
+  },
+  "PROFILE": {
+    "id": 106,
+    "name": "Profile"
+  },
+  "CANVAS_MATERIAL": {
+    "id": 108,
+    "name": "Canvas Material"
+  },
+  "COLOUR": {
+    "id": 110,
+    "name": "Colour"
+  },
+  "STRUCTURE": {
+    "id": 112,
+    "name": "Structure"
+  },
+  "CORNER_TYPE": {
+    "id": 114,
+    "name": "Corner Type"
+  },
+  "SIDE_SUPPORT_TYPE": {
+    "id": 116,
+    "name": "Side Support Type"
+  },
+  "QTY_SIDE_SUPPORT": {
+    "id": 118,
+    "name": "Qty Side Support"
+  },
+  "GROUND_ANCHORING": {
+    "id": 120,
+    "name": "Ground Anchoring"
+  },
+  "ROOF_CANVAS": {
+    "id": 122,
+    "name": "Roof Canvas"
+  },
+  "SIDEWALL": {
+    "id": 124,
+    "name": "Sidewall"
+  },
+  "SIDEWALL_OPTION": {
+    "id": 126,
+    "name": "Sidewall Option"
+  },
+  "GABLE_END_CANVAS": {
+    "id": 128,
+    "name": "Gable End Canvas"
+  },
+  "GABLE_END_CANVAS_DETAILS": {
+    "id": 130,
+    "name": "Gable End Canvas Details"
+  },
+  "GABLE_END_STRUCTURE": {
+    "id": 132,
+    "name": "Gable End Structure"
+  },
+  "GUTTER": {
+    "id": 134,
+    "name": "Gutter"
+  },
+  "DOOR": {
+    "id": 136,
+    "name": "Door"
+  },
+  "DOOR_QTY": {
+    "id": 138,
+    "name": "Door Qty"
+  },
+  "ACCESSORIES": {
+    "id": 140,
+    "name": "Accessories"
+  },
+  "QUOTATION_REF": {
+    "id": 142,
+    "name": "Quotation Ref"
+  }
+}
