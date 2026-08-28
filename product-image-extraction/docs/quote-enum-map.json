@@ -1,0 +1,144 @@
+{
+  "ufCrmQuoteWidth": {
+    "3m": "196",
+    "6m": "198",
+    "9m": "200",
+    "15m": "202",
+    "19m": "204",
+    "20m": "206",
+    "25m": "208",
+    "30m": "210",
+    "40m": "212",
+    "50m": "214",
+    "60m": "216"
+  },
+  "ufCrmQuoteLength": {
+    "5m": "218",
+    "10m": "220",
+    "15m": "222",
+    "20m": "224",
+    "25m": "226",
+    "30m": "228",
+    "35m": "230",
+    "40m": "232",
+    "45m": "234",
+    "50m": "236",
+    "Continous +5m": "238"
+  },
+  "ufCrmQuoteProfile": {
+    "80mm x 60mm (CM)": "240",
+    "98mm x 60mm ": "242",
+    "155mm x 60mm": "244",
+    "158mm x 60mm": "246",
+    "158mm x 89mm (CM)": "248",
+    "210mm x 112mm": "250",
+    "255mm x 120mm": "252",
+    "300mm x 125mm": "254",
+    "350mm x 125mm": "256"
+  },
+  "ufCrmQuoteCanvasMaterial": {
+    "BO1100-HSH850": "258",
+    "BO1100-SX800": "260",
+    "TPT-HSB080": "262"
+  },
+  "ufCrmQuoteColour": {
+    "White": "264",
+    "Grey": "266",
+    "Grey White": "268",
+    "Blue Grey": "270",
+    "Red Grey": "272",
+    "Clear": "274"
+  },
+  "ufCrmQuoteStructure": {
+    "Temporary": "276",
+    "Semi - Permanent": "278",
+    "Temporary (CM)": "280",
+    "Semi - Permanent (CM)": "282"
+  },
+  "ufCrmQuoteCornerType": {
+    "T1 - Fitting": "284",
+    "T2 - Side Plate": "286",
+    "T3 - Side Plate": "288"
+  },
+  "ufCrmQuoteSideSupportType": {
+    "Side Cable": "290",
+    "Side Support Beam": "292",
+    "Cross Support Frame": "294",
+    "2D Truss": "296"
+  },
+  "ufCrmQuoteQtySideSupports": {
+    "1 Bay": "298",
+    "2 Bay": "300",
+    "3 Bay": "302",
+    "More": "304"
+  },
+  "ufCrmQuoteGroundAchoring": {
+    "Spike": "306",
+    "Wall Plug": "308",
+    "Chemical Bolt": "310",
+    "J - Bolt": "312",
+    "Concreate Footing": "314",
+    "Counter Weight (Concreate Block)": "316",
+    "Counter Weight (Connection Plate)": "318"
+  },
+  "ufCrmQuoteRoofCanvas": {
+    "Standard Cutting": "320",
+    "CM Cutting": "322",
+    "C/W Separate Canvas Flap": "324",
+    "C/W Overlap Canvas Flap": "326"
+  },
+  "ufCrmQuoteSidewall": {
+    "QTY Pcs": "328",
+    "No": "330"
+  },
+  "ufCrmQuoteSidewallOption": {
+    "Canvas sidewall c/w liners, wall hook & zipper": "332",
+    "Canvas sidewall c/w liners, wall hook & rope with eylet": "334",
+    "Canvas sidewall c/w 1 french window": "336",
+    "Canvas sidewall c/w 2 french window": "338",
+    "Canvas sidewall c/w 3 side liner (CM)": "340",
+    "Hard Panel Sidewall complete set": "342",
+    "Glass panel sidewall complete set": "344"
+  },
+  "ufCrmQuoteGableEndCanvas": {
+    "1 pcs": "346",
+    "2 pcs": "348",
+    "No": "350"
+  },
+  "ufCrmQuoteGableEndCanvasDetails": {
+    "Std Cutting": "352",
+    "Printing Cutting": "354",
+    "C/W Window": "356",
+    "C/W Tensioning Cable": "358",
+    "C/W Tensioning Complete Set (tension tubes & patches)": "360",
+    "C/W Tensioning Complete Set (tension tubes & J-Tension Rod)": "362"
+  },
+  "ufCrmQuoteGableEndStructure": {
+    "1 Set": "364",
+    "2 Set": "366",
+    "No": "368"
+  },
+  "ufCrmQuoteGutter": {
+    "Canvas Gutter c/w wall hook": "370",
+    "PVC Gutter c/w hook bracke": "372",
+    "Zinc Gutter c/w pvc down pipe (CM)": "374",
+    "No": "376"
+  },
+  "ufCrmQuoteDoor": {
+    "Double Door": "378",
+    "Single Door": "380",
+    "Super Double Door": "382",
+    "Super Single Door": "384",
+    "Roller Shutter": "386",
+    "Industrial Sliding Door": "388",
+    "Motorize Shutter Door": "390"
+  },
+  "ufCrmQuoteAccessories": {
+    "Roof Underlay": "392",
+    "Gable End Underlay": "394",
+    "Sidewall Underlay": "396",
+    "Alumunium Foil": "398",
+    "50 Inch Industrial Ventilation Fan c/w Frame": "400",
+    "Highbay LED c/w Wiring": "402"
+  }
+}

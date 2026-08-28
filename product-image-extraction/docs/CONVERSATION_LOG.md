@@ -132,6 +132,46 @@ Initial test: webhook `qipn7bi17pp91co5` had `catalog.*` access denied.
 - `catalog.price.add` (set SKU price)
 - `crm.item.productrow.add` (link SKU to Estimate)
 
+---
+
+## v4 follow-up — 2026-08-28 (after v3 handoff test)
+
+Michael's feedback after testing v3:
+
+> "Mas, ini saya cek masih perlu ada adjustment karena yg terinput sekarang hanya atributnya milik produk pertama, sedangkan atribut milik produk kedua dan ketiga tidak terisi. Perlu buat 3 estimate apabila ada 3 produk dalam 1 quotation."
+>
+> "Goalsnya nanti:
+> 1. Mengubah dari SPA estimates ke fitur estimate bawaan bitrix
+> 2. Satu quotation yang ada 3 product akan membuat 3 record berbeda, jadi 1 product 1 record, untuk keperluan analytics agar lebih mudah"
+
+**Interpretation & design decisions (user-approved 2026-08-28)**:
+
+### v4 R10 — Migrate SPA (1038) → native Bitrix Quote (entityTypeId 7)
+- Team lain sudah setup 29 UF field di Quote entity dan 19 enum values (dengan minor typos: Alumunium, Continous, Concreate, PVC bracke, Semi - Permanent dengan spaces)
+- Quote statuses sudah di-rename team match SPA flow: DRAFT=Start, SENT=Prepare (trigger), UC_PXE68A=Approval, APPROVED=Accepted, DECLAINED=Declined, APOLOGY=Analyze decline
+- Team's draft n8n workflow modified but never published (couldn't solve)
+- Enum populate via API confirmed WORKS on Quote (previously failed on SPA)
+
+### v4 R11 — 1 line item = 1 Quote record (bukan 1 quotation = 1 record)
+- Previous v3 design: 1 quotation dengan 3 line items → 1 SPA item + 3 productrows (only line 1's specs in fields)
+- New design: 1 quotation dengan 3 line items → 3 SEPARATE Quote records, each with own specs + own 1 productrow
+- Rationale (Michael): easier analytics, each product = 1 analytics unit
+- Multi-quotation still supported: M quotations × N lines each = M×N Quote records (all flat, grouped by shared ufCrmQuoteQref)
+
+### v4 Idempotency strategy
+- On re-fire: lookup existing Quotes by `ufCrmQuoteQref`, delete siblings (except origItemId), re-create fresh
+- Product rows on Quote use `crm.quote.productrows.set` (atomic replace, no dup)
+
+### v4 SPA 1038 cleanup
+- SPA 1038 test items deleted
+- SPA type 8 KEPT (not deleted) — schema reference for team, no runtime cost
+
+### v4 Ambiguities resolved (user-approved via question rounds)
+1. Enum handling: **populate via API from Excel taxonomy** (team already did this, my script confirmed values via crm.item.fields)
+2. SPA cleanup: **delete test items, keep type as reference** (not fully archive since no clean archive API)
+3. Multi-quot combo: **5 Quote records if 1 file has 2 quotations of 3+2 lines** (flat, share quotationRef for analytics grouping)
+4. Automation rule: **API first (denied), fallback UI** — Michael setup on Quote entity, SENT stage
+
 ## Requirement Status Matrix
 
 | # | Requirement | Source | Status |
@@ -139,12 +179,14 @@ Initial test: webhook `qipn7bi17pp91co5` had `catalog.*` access denied.
 | R1 | Extract text from image → AI → Bitrix | v1 kickoff | ✅ Live |
 | R2 | Handle 4 attachment format (PNG/PDF/DOCX/other) | User expansion of R1 | ✅ Live |
 | R3 | Populate 22 custom field per Excel taxonomy | v1 kickoff | ✅ Live |
-| R4 | Multi-line item extraction | v1 handoff feedback (Grand > Line noted) | ✅ Live |
+| R4 | Multi-line item extraction | v1 handoff feedback | ✅ Live |
 | R5 | Snap AI values ke Excel taxonomy | v1 handoff feedback | ✅ Live |
-| R6 | Populate Products tab | v2 Req 1 | 🚧 In progress |
-| R7 | Multi-quotation → multi-SPA item | v2 Req 2 | 🚧 In progress |
-| R8 | Store attributes on Product entity (CRM Products with properties) | v3 Req 1 | 🚧 In progress |
-| R9 | Product deduplication by NAME | v3 design decision | 🚧 In progress |
+| R6 | Populate Products tab | v2 Req 1 | ✅ Live (via crm.quote.productrows.set) |
+| R7 | Multi-quotation → multi-record | v2 Req 2 | ✅ Live (now flat, 1 line = 1 record) |
+| R8 | Store attributes on Product entity (SKU hierarchy) | v3 Req 1 | ✅ Live (parent iblock 14 + SKU iblock 16) |
+| R9 | Product deduplication by NAME | v3 design decision | ✅ Live |
+| R10 | Migrate SPA 1038 → native Quote 7 | v4 Req | ✅ Live |
+| R11 | 1 line item = 1 Quote record | v4 Req | ✅ Live |
 
 ---
 

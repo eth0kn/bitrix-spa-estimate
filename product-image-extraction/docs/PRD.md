@@ -224,3 +224,67 @@ Michael: "simpannya di SKU property untuk attribute snya, waktu create estimates
 - Currency conversion (RM only)
 - Auto product-family normalization dengan fuzzy matching (misal "Aluminium Free Span Structure" vs "Alu FreeSpan Tent" — treated as different families unless AI extract same product_family)
 - Product catalog sections (semua products flat di iblock 14 root)
+
+---
+
+## v4 Additional Requirements (2026-08-28, Michael v3 handoff feedback)
+
+Full context: [`CONVERSATION_LOG.md`](CONVERSATION_LOG.md) → v4 section.
+
+### v4 R10 — Migrate SPA "Estimates" (entityTypeId 1038) → native Bitrix Quote (entityTypeId 7)
+
+Michael: "Mengubah dari SPA estimates ke fitur estimate bawaan bitrix"
+
+**Rationale**: Native Quote has better built-in analytics + reporting, standard Bitrix workflow (Draft/Sent/Approved/Declined status).
+
+**Setup done (by team lain, verified 2026-08-28)**:
+- 29 UF field di Quote (mirror SPA fields, ufCrmQuote* prefix)
+- 19 enum fields populated dengan Excel taxonomy values via userfieldconfig (with minor typos: Alumunium, Continous, Concreate, PVC bracke, Semi - Permanent with spaces)
+- Quote statuses renamed: DRAFT (Start), **SENT (Prepare — trigger)**, UC_PXE68A (Approval), APPROVED (Accepted), DECLAINED (Declined), APOLOGY (Analyze decline)
+
+**Enum ID map**: `docs/quote-enum-map.json` (104 enum values across 19 fields)
+
+### v4 R11 — 1 line item = 1 Quote record
+
+Michael: "Satu quotation yang ada 3 product akan membuat 3 record berbeda, jadi 1 product 1 record, untuk keperluan analytics"
+
+**Design (user-approved)**:
+- Previous v3: 1 quotation → 1 SPA/Quote item + N productrows (only line 1's specs in fields)
+- New v4: 1 quotation with N lines → **N separate Quote records**, each with:
+  - Own custom fields dari that line's specs
+  - Own 1 productrow linked to catalog SKU
+  - Shared `ufCrmQuoteQref` for analytics grouping
+
+Multi-quotation still supported: M quotations × N lines each = M×N total Quote records (all flat).
+
+### v4 Flow
+```
+Sales attach file to Quote A → move to SENT (Prepare)
+   ↓ Bitrix Automation Rule
+n8n webhook receives {item_id: A}
+   ↓ workflow processes
+Line 1 → UPDATE Quote A dengan specs + productrow
+Line 2..N → CREATE new Quote (B, C, ...) each with own specs + productrow
+All linked by ufCrmQuoteQref
+```
+
+### v4 Idempotency
+- Before processing: lookup Quotes with matching `ufCrmQuoteQref`, delete siblings (except origItemId)
+- Product rows: use `crm.quote.productrows.set` (atomic replace)
+
+### v4 Enum matching strategy
+Workflow loads enum ID map at start. Per attribute value from AI:
+- Exact match by value string → return enum ID
+- Case-insensitive match → return enum ID
+- Normalized match (strip whitespace/dashes) → return enum ID
+- No match → skip field (leave empty)
+
+### v4 Cleanup
+- SPA 1038 test items: deleted
+- SPA type 8: KEPT (not deleted) — schema reference for team
+
+## v4 Out of Scope
+
+- Native Bitrix Estimate module (module invoice/quote/document — different from Quote entity 7)
+- Fuzzy field name matching (typos like "Alumunium" stay as-is, taxonomy hints in AI prompt guide AI to use these)
+- Parent-child linking between Quotes (all flat, grouped only by shared quotationRef)

@@ -17,13 +17,18 @@ Otomatisasi ekstraksi produk dari image / PDF / DOCX quotation → OpenAI → po
 - ✅ Taxonomy hints in AI prompt untuk consistent output values
 - ✅ End-to-end verified
 
-### v2 + v3 (LIVE, 2026-08-25)
-- ✅ R6: Products tab populated via `crm.item.productrow.add` (ownerType `T40e` for SPA 1038)
-- ✅ R7: Multi-quotation logic in AI prompt (untested with real multi-quotation file, but code handles N quotations)
-- ✅ R8: TRUE SKU hierarchy — parent products in iblock 14, SKU offers in iblock 16 dengan 22 property attributes + parent link (CML2_LINK property 46)
-- ✅ R9: Dedup — parent by family name, SKU by variant name; idempotent re-fire
-- ✅ End-to-end verified dengan QT1 (PDF + PNG): 3 line items → 3 SKUs → 3 product rows
-- ✅ Delete-existing-rows retry logic (Bitrix delete sometimes silently fails on first call)
+### v2 + v3 (LIVE, 2026-08-25) → superseded by v4
+- v2/v3 baseline: SPA 1038, 1 quotation = 1 SPA item + N productrows
+
+### v4 (LIVE, 2026-08-28)
+- ✅ R10: Migrated SPA 1038 → **native Bitrix Quote (entityTypeId 7)** — team lain sudah setup 29 UF field + enum values
+- ✅ R11: **1 line item = 1 Quote record** — QT1 dengan 3 lines → 3 Quote records, each with own specs + own productrow
+- ✅ Enum values populate: 19 enum fields, 104 values total, mapping saved di [`docs/quote-enum-map.json`](docs/quote-enum-map.json)
+- ✅ Enum lookup: fuzzy matcher (case + whitespace normalize) di workflow
+- ✅ Idempotent: re-fire deletes existing children (matched by ufCrmQuoteQref), recreates
+- ✅ Product rows via `crm.quote.productrows.set` (atomic replace)
+- ✅ SPA 1038 test items deleted; SPA type kept as reference
+- ⏳ Automation Rule setup Michael via UI (API denied for webhook auth)
 
 ## Attachment Format Handling
 
