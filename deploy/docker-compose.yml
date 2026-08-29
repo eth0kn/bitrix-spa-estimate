@@ -92,6 +92,13 @@ services:
     networks:
       - n8n-internal
 
+  pdf2png:
+    build: ./pdf2png
+    container_name: n8n-pdf2png
+    restart: unless-stopped
+    networks:
+      - n8n-internal
+
 networks:
   n8n-internal:
     name: n8n-stack-internal
