@@ -187,6 +187,52 @@ Michael's feedback after testing v3:
 | R9 | Product deduplication by NAME | v3 design decision | ✅ Live |
 | R10 | Migrate SPA 1038 → native Quote 7 | v4 Req | ✅ Live |
 | R11 | 1 line item = 1 Quote record | v4 Req | ✅ Live |
+| R12 | Multi-quotation multi-revision extract (Michael's Sample_1.pdf) | v4.1 Req | ✅ v4.3 Live |
+| R13 | Ref extraction with slash suffix (e.g. /sf/jc) | v4.1 Req | ⏳ Partial (DPI Phase 5 deferred — OpenAI credit exhausted) |
+
+---
+
+## v4.1-v4.3 iteration — 2026-08-29 (Michael's Sample_1.pdf feedback)
+
+Michael's feedback: "PDF Masih perlu adjustment, quotenya yang dibaca sepertinya hanya 1 mas... untuk QT-10/24-0014-R1/sf/jc tidak tergenrate... nama quotationnya hanya QT-10/24-0014-R2 tidak ada tambahan /sf/jc"
+
+Michael's Sample_1.pdf (19MB, 25 pages, image-only PDF from EMF-embedded DOCX) analyzed:
+- AI first pass extracts **5 quotations**: Q1-Q3 (empty ref), Q4-Q5 (both with truncated "QT-10/24-0014-R2")
+- Q4 and Q5 are actually **variant options** of R2 (Grey vs White colors) — not true duplicates
+- Ref suffix `/sf/jc` consistently truncated by AI Vision OCR (limitation on 25-page image PDF)
+
+### Iterations tried
+- **v4.1**: Prompt improvement (dedup rule, ref verbatim instruction) → no material change (AI-side rules ignored on complex layouts)
+- **v4.2**: Workflow post-processing dedup (by signature) + placeholder for empty ref + 2nd AI pass for ref extraction → dedup didn't work (variants have different signatures) + 2nd pass still truncated
+- **v4.3** (SHIPPED): Merge by ref (not signature) → variants merged into 1 quotation via line_no dedup → 13 records from 17 raw
+
+### User decisions (v4.1-v4.3 rounds)
+1. Empty-ref quotations → **placeholder** `Untitled-{date}-Q{N}` (Michael's Q1-Q3 preserved as separate records)
+2. R2 variants (Grey/White) → **merge as 1 quotation** (keep first line per line_no, drop variant duplicates)
+3. Ref truncation fix strategy: **DPI preprocess** (Phase 5, deferred due to OpenAI credit exhaustion)
+
+### v4.3 Final result on Michael's Sample_1.pdf
+```
+- QT-10/24-0014-R2 (Marquee tent variants merged): 4 records
+- Untitled-2024-09-30-Q2 (10x15 tent): 2 records
+- Untitled-2024-10-28-Q3 (8x12 tent): 3 records
+- Untitled-2025-01-31-Q4 (6x13 tent): 4 records
+Total: 13 records (down from 17 in v4.2)
+```
+
+### Known limitations (v4.3)
+- Ref suffix `/sf/jc` truncated for QT-10/24-0014-R2 (AI OCR limit at default resolution). Michael must manually append via UI if needed.
+- Q1-Q3 refs use placeholder — AI couldn't OCR their refs on those pages. Michael must edit ufCrmQuoteQref via UI to correct if desired.
+- Variant metadata (Grey vs White) lost during merge (kept first variant's product_variant_name).
+
+### Phase 5 backlog (post-topup)
+- Higher-DPI PDF preprocessing (pdf2image 200-300 DPI) → send hi-res image_url to OpenAI Vision → improved OCR for ref suffix
+- Optional: multi-pass extraction (per section) for very long PDFs (>10 pages)
+
+### OpenAI credit blocker (2026-08-29)
+- Mid-test HTTP 429: "You have no credits remaining"
+- Impact: workflow deployed but ANY new extract fails until Michael tops up
+- Affects Project 1, 2, 3 (shared key)
 
 ---
 

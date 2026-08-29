@@ -21,14 +21,22 @@ Otomatisasi ekstraksi produk dari image / PDF / DOCX quotation → OpenAI → po
 - v2/v3 baseline: SPA 1038, 1 quotation = 1 SPA item + N productrows
 
 ### v4 (LIVE, 2026-08-28)
-- ✅ R10: Migrated SPA 1038 → **native Bitrix Quote (entityTypeId 7)** — team lain sudah setup 29 UF field + enum values
-- ✅ R11: **1 line item = 1 Quote record** — QT1 dengan 3 lines → 3 Quote records, each with own specs + own productrow
-- ✅ Enum values populate: 19 enum fields, 104 values total, mapping saved di [`docs/quote-enum-map.json`](docs/quote-enum-map.json)
-- ✅ Enum lookup: fuzzy matcher (case + whitespace normalize) di workflow
-- ✅ Idempotent: re-fire deletes existing children (matched by ufCrmQuoteQref), recreates
-- ✅ Product rows via `crm.quote.productrows.set` (atomic replace)
-- ✅ SPA 1038 test items deleted; SPA type kept as reference
-- ⏳ Automation Rule setup Michael via UI (API denied for webhook auth)
+- ✅ R10: Migrated SPA 1038 → **native Bitrix Quote (entityTypeId 7)**
+- ✅ R11: **1 line item = 1 Quote record**
+- ✅ Enum values populate: 19 fields, 104 values, mapping [`docs/quote-enum-map.json`](docs/quote-enum-map.json)
+- ✅ Enum lookup fuzzy matcher; Idempotent re-fire; Products tab via `crm.quote.productrows.set`
+- ✅ SPA 1038 test items deleted; type kept
+- ✅ Automation Rule live pada Quote entity stage SENT (verified auto-fire on stage change)
+
+### v4.3 (LIVE, 2026-08-29) — Michael's Sample_1.pdf feedback
+- ✅ R12: Multi-quotation multi-revision extraction (Sample_1.pdf: 5 raw quotations → 4 unique after merge → 13 records)
+- ✅ Merge by ref: R2 variants (Grey/White colors) merged as 1 quotation via line_no dedup
+- ✅ Empty-ref placeholder: quotations without visible ref → `Untitled-{date}-Q{N}`
+- ⏳ R13 (Phase 5): DPI preprocess for ref suffix `/sf/jc` — deferred, OpenAI credit exhausted mid-test
+
+### Blocker: OpenAI credits exhausted (2026-08-29)
+- Workflow deployed but new extracts fail with HTTP 429 until topup
+- Affects Project 1, 2, 3 (shared API key)
 
 ## Attachment Format Handling
 
