@@ -1,0 +1,551 @@
+{
+  "name": "OCR Doc Extraction (SPA 1046)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ocr-doc-extract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1800,
+        400
+      ],
+      "webhookId": "ocr-doc-extract"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "itemId",
+              "value": "={{ $json.body?.['document_id[2]']?.split('_').pop() || $json.body?.document_id?.[2]?.split('_').pop() || $json.body?.item_id || $json.body?.data?.FIELDS?.ID || $json.query?.item_id || $json.query?.id || $json.body?.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-id",
+      "name": "Extract Item ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_TFSSB_URL }}/crm.item.get",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entityTypeId: 1046, id: parseInt($json.itemId) }) }}",
+        "options": {}
+      },
+      "id": "bitrix-get-item",
+      "name": "Bitrix: Get SPA Item",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $json.result?.item?.ufCrm12SourceDoc?.id || 0 }}",
+              "rightValue": 0
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-has-file",
+      "name": "IF Has File",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json.result.item;\nconst file = item.ufCrm12SourceDoc;\nconst fileObj = Array.isArray(file) ? file[0] : file;\nconst url = fileObj.urlMachine || fileObj.url || fileObj.downloadUrl;\nreturn [{ json: { itemId: item.id, fileUrl: url, stageId: item.stageId } }];"
+      },
+      "id": "extract-file-url",
+      "name": "Extract File URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.fileUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "fullResponse": true,
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "download-file",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $input.first();\nconst headers = inp.json?.headers || {};\nlet contentType = (headers['content-type'] || headers['Content-Type'] || '').toLowerCase();\nlet disposition = headers['content-disposition'] || headers['Content-Disposition'] || '';\nlet fileName = 'file';\nconst m = disposition.match(/filename\\*?=(?:UTF-8'')?\"?([^\";]+)\"?/i);\nif (m) fileName = decodeURIComponent(m[1]);\nlet format = 'other';\nlet mimeType = 'application/octet-stream';\nif (contentType.startsWith('image/')) {\n  format = 'image';\n  mimeType = contentType.split(';')[0];\n} else if (contentType.includes('pdf')) {\n  format = 'pdf';\n  mimeType = 'application/pdf';\n} else if (contentType.includes('wordprocessingml') || contentType.includes('msword') || fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc')) {\n  format = 'docx';\n  mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';\n} else {\n  const bin = inp.binary?.data;\n  if (bin && bin.data) {\n    const first4 = Buffer.from(bin.data, 'base64').slice(0, 4).toString('hex');\n    if (first4.startsWith('89504e47')) { format = 'image'; mimeType = 'image/png'; }\n    else if (first4.startsWith('ffd8ff')) { format = 'image'; mimeType = 'image/jpeg'; }\n    else if (first4.startsWith('25504446')) { format = 'pdf'; mimeType = 'application/pdf'; }\n    else if (first4.startsWith('504b0304')) { format = 'docx'; mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; }\n  }\n}\nconst itemId = $('Extract File URL').first().json.itemId;\nreturn [{ json: { itemId, format, mimeType, fileName }, binary: inp.binary }];"
+      },
+      "id": "detect-format",
+      "name": "Detect Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "r1",
+                    "leftValue": "={{ $json.format }}",
+                    "rightValue": "docx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "docx"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "r2",
+                    "leftValue": "={{ $json.format }}",
+                    "rightValue": "other",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "outputKey": "other"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": false,
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch-format",
+      "name": "Switch: Format",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gotenberg:3000/forms/libreoffice/convert",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "gotenberg-convert",
+      "name": "Gotenberg: DOCX->PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inp = $input.first();\nconst binary = inp.binary?.data;\nif (!binary) throw new Error('Missing binary data in Build AI Content');\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst detected = $('Detect Format').first().json;\nconst { itemId, format, fileName } = detected;\n\nlet contentParts;\nif (format === 'image') {\n  const b64 = buffer.toString('base64');\n  contentParts = [{ type: 'image_url', image_url: { url: `data:${detected.mimeType};base64,${b64}`, detail: 'high' } }];\n} else {\n  // PDF or DOCX-converted-to-PDF — render at 200 DPI via pdf2png\n  let renderResp;\n  try {\n    renderResp = await this.helpers.httpRequest({\n      method: 'POST', url: 'http://pdf2png:5000/pdf-to-images',\n      body: JSON.stringify({ pdf_base64: buffer.toString('base64'), dpi: 200, format: 'JPEG', quality: 85 }),\n      headers: { 'Content-Type': 'application/json' }, json: false, timeout: 180000\n    });\n  } catch (e) {\n    throw new Error('pdf2png service failed: ' + e.message);\n  }\n  const parsed = typeof renderResp === 'string' ? JSON.parse(renderResp) : renderResp;\n  const pages = parsed.pages || [];\n  if (pages.length === 0) throw new Error('pdf2png returned no pages');\n  contentParts = pages.map(p => ({ type: 'image_url', image_url: { url: p.data_url, detail: 'high' } }));\n}\n\nconst systemPrompt = \"You extract structured data from vendor/supplier quotation PDFs. The documents come from a construction/architectural firm (TFS Consultants). Extract each quotation's metadata + line items. Output ONLY valid JSON, no markdown. Missing text → empty string; missing numbers → 0. Dates as YYYY-MM-DD (parse '4th November 2025' → '2025-11-04'). Currency values as plain numbers.\";\n\nconst userText = `Extract the following from this quotation document:\n\nREQUIRED FIELDS:\n- reference: The document reference number (e.g. 'TFS / PRJ / 0176 / 11 / 2025/R1' or 'TFS/PRJ/0092/05/2026'). Copy VERBATIM including all slashes, dashes, dots, revision markers (R1, R2, R3). Look for 'Our Ref:' label.\n- quotation_date: Date on the quotation (YYYY-MM-DD). Look for 'Date:' label.\n- company_name: The recipient company name (customer). It's the company at the top of the letter, right after the ref+date section, before 'Attn:' or the address.\n- attn: The specific contact person's name after 'Attn:' or 'Kindly Attention:' label.\n- subject: The 'RE:' line describing what the quotation is for.\n- validity: The validity period stated (e.g. '45 days', '30 days').\n- confirmation: How order confirmation happens (e.g. 'Upon receiving your Purchase Order and Deposit Payment').\n- delivery: The delivery period (e.g. '120 working days upon date of confirmation').\n- payment_schedule: Full breakdown of payment stages (concatenate as text, e.g. '50% deposit upon confirmation, 40% upon prefabrication/before delivery, 10% balance on completion').\n- timeline_start: Estimated project start date (YYYY-MM-DD) if stated, else empty.\n- timeline_end: Estimated project end date (YYYY-MM-DD) if stated, else empty.\n- line_items: Array of line items from the pricing table. Each with:\n    - line_no: sequential number (1, 2, 3...)\n    - product_family: base product category (e.g. 'PVDF Membrane Structure', 'HDPE Shade Sail', 'PE Calculation')\n    - product_variant_name: full descriptive text as shown in the quotation\n    - unit_price_rm: unit price in RM (number, no comma)\n    - quantity: quantity (default 1)\n    - unit_measure: 'unit', 'lot', 'sqm', etc.\n    - line_total_rm: line total\n\nOutput schema:\n{\n  \"reference\": string,\n  \"quotation_date\": string,\n  \"company_name\": string,\n  \"attn\": string,\n  \"subject\": string,\n  \"validity\": string,\n  \"confirmation\": string,\n  \"delivery\": string,\n  \"payment_schedule\": string,\n  \"timeline_start\": string,\n  \"timeline_end\": string,\n  \"line_items\": [{ \"line_no\": number, \"product_family\": string, \"product_variant_name\": string, \"unit_price_rm\": number, \"quantity\": number, \"unit_measure\": string, \"line_total_rm\": number }]\n}`;\n\nconst aiBody = {\n  model: 'gpt-5.5',\n  messages: [\n    { role: 'system', content: systemPrompt },\n    { role: 'user', content: [ { type: 'text', text: userText }, ...contentParts ] }\n  ],\n  max_completion_tokens: 8000,\n  response_format: { type: 'json_object' }\n};\nreturn [{ json: { itemId, format, fileName, aiBody } }];"
+      },
+      "id": "build-ai-content",
+      "name": "Build AI Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.aiBody) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "openai-extract",
+      "name": "OpenAI: Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Persist to Bitrix — OCR Doc Extraction, SPA 1046. 1 doc = 1 SPA record (no need multi-quotation splitting like Project 3).\nconst BASE = $env.BITRIX_TFSSB_URL;\nconst SPA_ENTITY_TYPE_ID = 1046;\nconst SPA_CATEGORY_ID = 20;\nconst PRODUCTROW_OWNER_TYPE = 'T416'; // SYMBOL_CODE_SHORT for entityTypeId 1046\nconst PROP_PARENT_LINK = 46; // CML2_LINK on iblock 16 (SKU offers)\n\nasync function bx(method, body) {\n  const r = await this.helpers.httpRequest({\n    method: 'POST', url: `${BASE}/${method}`,\n    headers: {'Content-Type':'application/json'},\n    body: JSON.stringify(body || {}), json: false\n  });\n  return typeof r === 'string' ? JSON.parse(r) : r;\n}\n\n// Parse AI\nconst resp = $input.first().json;\nconst raw = resp.choices?.[0]?.message?.content;\nif (!raw) throw new Error('OpenAI returned no content');\nlet data;\ntry { data = typeof raw === 'string' ? JSON.parse(raw) : raw; }\ncatch (e) { throw new Error('AI JSON parse failed: ' + String(raw).slice(0, 300)); }\n\nconst origItemId = $('Detect Format').first().json.itemId;\n\n// Idempotency: delete existing product rows on this SPA item\nfor (let attempt = 0; attempt < 4; attempt++) {\n  const existing = await bx.call(this, 'crm.item.productrow.list', { filter: { '=ownerType': PRODUCTROW_OWNER_TYPE, '=ownerId': origItemId } });\n  const rows = existing.result?.productRows || [];\n  if (rows.length === 0) break;\n  for (const row of rows) {\n    await bx.call(this, 'crm.item.productrow.delete', { id: row.id });\n  }\n}\n\n// 1. Update SPA item with quotation metadata\nconst quoteFields = {\n  ufCrm12Reference: data.reference || '',\n  ufCrm12QuotationDate: data.quotation_date || null,\n  ufCrm12CompanyName: data.company_name || '',\n  ufCrm12Attn: data.attn || '',\n  ufCrm12Subject: data.subject || '',\n  ufCrm12Validity: data.validity || '',\n  ufCrm12Confirmation: data.confirmation || '',\n  ufCrm12Delivery: data.delivery || '',\n  ufCrm12PaymentSchedule: data.payment_schedule || '',\n  ufCrm12TimelineStart: data.timeline_start || null,\n  ufCrm12TimelineEnd: data.timeline_end || null\n};\n// Also set title to reference for easier UI browsing\nconst spaTitle = data.reference\n  ? `${data.reference}${data.company_name ? ' — ' + data.company_name : ''}`\n  : `OCR Doc ${origItemId}`;\nawait bx.call(this, 'crm.item.update', {\n  entityTypeId: SPA_ENTITY_TYPE_ID, id: origItemId,\n  fields: { ...quoteFields, title: spaTitle }\n});\n\n// 2. For each line item — find/create parent+SKU in catalog, then add productrow\nconst lines = data.line_items || [];\nconst results = [];\nfor (const li of lines) {\n  const productFamily = String(li.product_family || 'Unnamed').trim().slice(0, 250);\n  const productVariantName = String(li.product_variant_name || li.product_family || 'Line Item').trim().slice(0, 250);\n  const unitPrice = li.unit_price_rm || 0;\n  const quantity = li.quantity || 1;\n\n  // Find/create parent (iblock 14)\n  let parentId;\n  const parentFind = await bx.call(this, 'catalog.product.list', {\n    select: ['id','name','iblockId'],\n    filter: { iblockId: 14, '=name': productFamily }\n  });\n  const parentMatches = parentFind.result?.products || [];\n  if (parentMatches.length > 0) {\n    parentId = parentMatches[0].id;\n  } else {\n    const parentAdd = await bx.call(this, 'catalog.product.add', {\n      fields: { iblockId: 14, name: productFamily, active: 'Y' }\n    });\n    parentId = parentAdd.result?.element?.id;\n    if (!parentId) throw new Error('Parent create failed: ' + JSON.stringify(parentAdd));\n  }\n\n  // Find/create SKU (iblock 16)\n  let skuId;\n  const skuFind = await bx.call(this, 'catalog.product.list', {\n    select: ['id','name','iblockId'],\n    filter: { iblockId: 16, '=name': productVariantName }\n  });\n  const skuMatches = skuFind.result?.products || [];\n  if (skuMatches.length > 0) {\n    skuId = skuMatches[0].id;\n  } else {\n    const skuAdd = await bx.call(this, 'catalog.product.add', {\n      fields: {\n        iblockId: 16, name: productVariantName, active: 'Y',\n        [`property${PROP_PARENT_LINK}`]: { value: parentId }\n      }\n    });\n    skuId = skuAdd.result?.element?.id;\n    if (!skuId) throw new Error('SKU create failed: ' + JSON.stringify(skuAdd));\n  }\n\n  // Add product row\n  const rowResp = await bx.call(this, 'crm.item.productrow.add', {\n    fields: {\n      ownerType: PRODUCTROW_OWNER_TYPE, ownerId: origItemId,\n      productId: skuId, price: unitPrice, quantity: quantity\n    }\n  });\n  const rowId = rowResp.result?.productRow?.id;\n  results.push({ line_no: li.line_no, parentId, skuId, rowId, unitPrice, quantity });\n}\n\nreturn [{ json: { spaId: origItemId, reference: data.reference, company_name: data.company_name, line_count: lines.length, lines_added: results } }];"
+      },
+      "id": "persist-to-bitrix",
+      "name": "Persist to Bitrix",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BITRIX_TFSSB_URL }}/crm.timeline.comment.add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fields: { ENTITY_ID: $('Detect Format').first().json.itemId, ENTITY_TYPE: 'DYNAMIC_1046', COMMENT: '[b]Unsupported file format[/b]\\nFile: ' + $('Detect Format').first().json.fileName + '\\n\\nOnly PNG/JPG, PDF, and DOCX are supported. Please re-upload in one of these formats.' } }) }}",
+        "options": {}
+      },
+      "id": "comment-unsupported",
+      "name": "Comment: Unsupported",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"no_file\" }",
+        "options": {}
+      },
+      "id": "respond-nofile",
+      "name": "Respond: No File",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1000,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"unsupported_format\" }",
+        "options": {}
+      },
+      "id": "respond-unsupported",
+      "name": "Respond: Unsupported",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Item ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Item ID": {
+      "main": [
+        [
+          {
+            "node": "Bitrix: Get SPA Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bitrix: Get SPA Item": {
+      "main": [
+        [
+          {
+            "node": "IF Has File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has File": {
+      "main": [
+        [
+          {
+            "node": "Extract File URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: No File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract File URL": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Detect Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Format": {
+      "main": [
+        [
+          {
+            "node": "Switch: Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Format": {
+      "main": [
+        [
+          {
+            "node": "Gotenberg: DOCX->PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Comment: Unsupported",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gotenberg: DOCX->PDF": {
+      "main": [
+        [
+          {
+            "node": "Build AI Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Content": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Extract": {
+      "main": [
+        [
+          {
+            "node": "Persist to Bitrix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist to Bitrix": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment: Unsupported": {
+      "main": [
+        [
+          {
+            "node": "Respond: Unsupported",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "ocr-doc-extraction"
+  },
+  "id": "dVnhGXN4RaYX62nq"
+}

@@ -9,7 +9,8 @@ Customer: **PT Len / Askarasoft** — PIC Michael Chandra.
 |---|---|---|---|---|---|---|
 | **1** | Proposal Estimation | [`proposal-estimation/`](proposal-estimation/) | ✅ Live | Bitrix Automation Rule (SPA 2098 stage change) | `askarasoftdemo.bitrix24.com` (DEMO) | Write to SPA field |
 | **2** | TLDV Meeting Summary | [`tldv-meeting-summary/`](tldv-meeting-summary/) | ✅ Live | TLDV `TranscriptReady` webhook | `askarasoft.bitrix24.com` (PRODUCTION) | Post Lead timeline comment + auto-create SPA "Proposal & Quotation" |
-| **3** | Product Image Extraction | [`product-image-extraction/`](product-image-extraction/) | ✅ v4 Live (Quote 7) | Bitrix Automation Rule (Quote entity 7, stage SENT/Prepare) | `tfssbdemo.bitrix24.com` (DEMO) | Extract quotation (image/PDF/DOCX) → **1 line item = 1 Quote record** dengan enum-mapped attribute fields + native Products tab + linked SKU (parent+variant catalog) |
+| **3** | Product Image Extraction | [`product-image-extraction/`](product-image-extraction/) | ✅ v4.4 Live (Quote 7) | Bitrix Automation Rule (Quote entity 7, stage SENT/Prepare) | `tfssbdemo.bitrix24.com` (DEMO) | Extract quotation (image/PDF/DOCX) → **1 line item = 1 Quote record** dengan enum-mapped attribute fields + native Products tab + linked SKU (parent+variant catalog) |
+| **4** | OCR Doc Extraction | [`ocr-doc-extraction/`](ocr-doc-extraction/) | ✅ Live (2026-09-05) | Bitrix Automation Rule (SPA 1046 stage Prepare) | `tfssbdemo.bitrix24.com` (DEMO) | Extract quotation metadata (ref, date, company, validity, delivery, payment, line items) dari text-PDF ke SPA 1046 "OCR Doc Extraction" |
 
 Both projects share:
 - **VPS**: same server, shared n8n stack

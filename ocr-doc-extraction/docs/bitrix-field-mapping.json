@@ -1,0 +1,74 @@
+{
+  "SOURCE_DOC": {
+    "id": "490",
+    "type": "file",
+    "label": "Source Document",
+    "fieldName": "UF_CRM_12_SOURCE_DOC"
+  },
+  "REFERENCE": {
+    "id": "492",
+    "type": "string",
+    "label": "Reference",
+    "fieldName": "UF_CRM_12_REFERENCE"
+  },
+  "QUOTATION_DATE": {
+    "id": "494",
+    "type": "date",
+    "label": "Quotation Date",
+    "fieldName": "UF_CRM_12_QUOTATION_DATE"
+  },
+  "COMPANY_NAME": {
+    "id": "496",
+    "type": "string",
+    "label": "Company Name",
+    "fieldName": "UF_CRM_12_COMPANY_NAME"
+  },
+  "ATTN": {
+    "id": "498",
+    "type": "string",
+    "label": "Attn (Contact)",
+    "fieldName": "UF_CRM_12_ATTN"
+  },
+  "SUBJECT": {
+    "id": "500",
+    "type": "string",
+    "label": "Subject (RE)",
+    "fieldName": "UF_CRM_12_SUBJECT"
+  },
+  "VALIDITY": {
+    "id": "502",
+    "type": "string",
+    "label": "Validity",
+    "fieldName": "UF_CRM_12_VALIDITY"
+  },
+  "CONFIRMATION": {
+    "id": "504",
+    "type": "string",
+    "label": "Confirmation",
+    "fieldName": "UF_CRM_12_CONFIRMATION"
+  },
+  "DELIVERY": {
+    "id": "506",
+    "type": "string",
+    "label": "Delivery",
+    "fieldName": "UF_CRM_12_DELIVERY"
+  },
+  "PAYMENT_SCHEDULE": {
+    "id": "508",
+    "type": "string",
+    "label": "Payment Schedule",
+    "fieldName": "UF_CRM_12_PAYMENT_SCHEDULE"
+  },
+  "TIMELINE_START": {
+    "id": "510",
+    "type": "date",
+    "label": "Project Timeline Start",
+    "fieldName": "UF_CRM_12_TIMELINE_START"
+  },
+  "TIMELINE_END": {
+    "id": "512",
+    "type": "date",
+    "label": "Project Timeline End",
+    "fieldName": "UF_CRM_12_TIMELINE_END"
+  }
+}
